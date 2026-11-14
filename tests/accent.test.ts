@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { accentContour, accentMelody, downstepFor } from "../src/lib/core/accent.ts";
+import { accentContour, accentMelody, downstepFor, noteName } from "../src/lib/core/accent.ts";
 import type { DictEntry, Token } from "../src/lib/core/types.ts";
 
 const entry = (
@@ -88,8 +88,8 @@ describe("accentContour", () => {
 });
 
 describe("accentMelody", () => {
-  const F_PENT = new Set([0, 2, 4, 7, 9].map((x) => x));
-  const inKey = (semisFromA4: number) => F_PENT.has((((semisFromA4 + 4) % 12) + 12) % 12);
+  const PENT = new Set([0, 2, 4, 7, 9]);
+  const inKey = (semisFromA4: number, low = -7) => PENT.has((((semisFromA4 - low) % 12) + 12) % 12);
   const passage = [
     tok("てんき", entry("天気", "てんき", 1), "天気"),
     tok("が"),
@@ -101,7 +101,7 @@ describe("accentMelody", () => {
     tok("たべます", entry("食べる", "たべる", 2, "食べます"), "食べます"),
     tok("。"),
   ];
-  test("every note is in F major pentatonic", () => {
+  test("every note is in the major pentatonic of the lowest note", () => {
     for (const n of accentMelody(passage)) expect(inKey(n)).toBe(true);
   });
   test("keeps the accent shape: rises and drops in the same places", () => {
@@ -117,10 +117,21 @@ describe("accentMelody", () => {
       }
     }
   });
-  test("stays in a singable range (F4–G5)", () => {
-    for (const n of accentMelody(passage)) {
-      expect(n).toBeGreaterThanOrEqual(-4);
-      expect(n).toBeLessThanOrEqual(10);
+  test("stays inside the voice range (default and custom)", () => {
+    for (const range of [undefined, { low: -4, high: 10 }, { low: -12, high: -3 }, { low: 0, high: 24 }]) {
+      const m = accentMelody(passage, range);
+      const r = range ?? { low: -7, high: 7 };
+      for (const n of m) {
+        expect(n).toBeGreaterThanOrEqual(r.low);
+        expect(n).toBeLessThanOrEqual(r.high);
+        expect(inKey(n, r.low)).toBe(true);
+      }
     }
+  });
+  test("noteName", () => {
+    expect(noteName(0)).toBe("A4");
+    expect(noteName(-7)).toBe("D4");
+    expect(noteName(3)).toBe("C5");
+    expect(noteName(-10)).toBe("B3");
   });
 });

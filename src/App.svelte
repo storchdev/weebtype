@@ -166,6 +166,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     bind:this={battle}
     {runId}
     volume={settings.battleVolume}
+    range={{ low: settings.voiceLow, high: settings.voiceHigh }}
     font={fontFamily(settings.font)}
     tokens={passage?.tokens}
   />

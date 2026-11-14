@@ -8,7 +8,7 @@
 // transform/opacity; the screen positions it needs are measured on mount/resize/run.
 
 import { onMount } from "svelte";
-import { accentMelody } from "../core/accent.ts";
+import { accentMelody, type VoiceRange } from "../core/accent.ts";
 import type { Token } from "../core/types.ts";
 import { singer } from "../singer.ts";
 
@@ -20,11 +20,13 @@ interface Props {
   font: string;
   /** The passage being typed; its pitch accent drives the singer's melody. */
   tokens: Token[] | undefined;
+  /** Singer's note range (semitones from A4). */
+  range: VoiceRange;
 }
-let { runId, volume, font, tokens }: Props = $props();
+let { runId, volume, font, tokens, range }: Props = $props();
 
-/** Pitch per char of the session target (concatenated readings). */
-const melody = $derived(tokens ? accentMelody(tokens) : []);
+/** Note per char of the session target (concatenated readings). */
+const melody = $derived(tokens ? accentMelody(tokens, range) : []);
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -51,6 +53,7 @@ let singTimer: ReturnType<typeof setTimeout> | undefined;
 let hurtTimer: ReturnType<typeof setTimeout> | undefined;
 
 $effect(() => singer.setVolume(volume / 100));
+$effect(() => singer.setRange(range));
 
 function measure(): void {
   if (singerSvg) {

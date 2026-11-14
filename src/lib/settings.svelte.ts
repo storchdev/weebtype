@@ -27,6 +27,9 @@ export interface Settings {
   battle: boolean;
   /** Singer voice volume, 0–100 (0 = silent). */
   battleVolume: number;
+  /** Singer's lowest / highest note, semitones from A4 (the key is the lowest note's). */
+  voiceLow: number;
+  voiceHigh: number;
   /** Opt-in keyboard click sounds. */
   keySounds: boolean;
   /** 0–100 */
@@ -48,6 +51,8 @@ export const DEFAULTS: Settings = {
   petals: true,
   battle: false,
   battleVolume: 40,
+  voiceLow: -7,
+  voiceHigh: 7,
   keySounds: false,
   keyVolume: 60,
 };
@@ -87,6 +92,8 @@ function sanitize(raw: unknown): Settings {
     petals: typeof r.petals === "boolean" ? r.petals : DEFAULTS.petals,
     battle: typeof r.battle === "boolean" ? r.battle : DEFAULTS.battle,
     battleVolume: num(r.battleVolume, 0, 100, DEFAULTS.battleVolume),
+    voiceLow: num(r.voiceLow, -24, 17, DEFAULTS.voiceLow),
+    voiceHigh: num(r.voiceHigh, -17, 24, DEFAULTS.voiceHigh),
     keySounds: typeof r.keySounds === "boolean" ? r.keySounds : DEFAULTS.keySounds,
     keyVolume: num(r.keyVolume, 0, 100, DEFAULTS.keyVolume),
   };

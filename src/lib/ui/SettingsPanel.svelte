@@ -1,4 +1,5 @@
 <script lang="ts">
+import { noteName } from "../core/accent.ts";
 import { LEVELS } from "../core/types.ts";
 import { FONTS } from "../fonts.ts";
 import { playKey } from "../keysound.ts";
@@ -7,6 +8,7 @@ import { singer, voicebank } from "../singer.ts";
 
 function previewVoice(): void {
   singer.setVolume(settings.battleVolume / 100);
+  singer.setRange({ low: settings.voiceLow, high: settings.voiceHigh });
   singer.preview();
 }
 
@@ -158,6 +160,29 @@ $effect(() => {
         <span class="label">Voice <small>{settings.battleVolume ? `${settings.battleVolume}%` : "muted"}</small></span>
         <input type="range" min="0" max="100" step="5" bind:value={settings.battleVolume} onchange={previewVoice} />
       </label>
+      <div class="field">
+        <span class="label">Range <small>{noteName(settings.voiceLow)} – {noteName(settings.voiceHigh)}</small></span>
+        <div class="range2">
+          <input
+            type="range"
+            min="-19"
+            max="12"
+            aria-label="Lowest note"
+            bind:value={settings.voiceLow}
+            oninput={() => (settings.voiceHigh = Math.max(settings.voiceHigh, settings.voiceLow + 7))}
+            onchange={previewVoice}
+          />
+          <input
+            type="range"
+            min="-12"
+            max="19"
+            aria-label="Highest note"
+            bind:value={settings.voiceHigh}
+            oninput={() => (settings.voiceLow = Math.min(settings.voiceLow, settings.voiceHigh - 7))}
+            onchange={previewVoice}
+          />
+        </div>
+      </div>
       {#await voicebank() then bank}
         <p class="note">
           {#if bank}voicebank: {bank.name}{:else}built-in synth · unzip a UTAU CV voicebank into <code>data/voice/</code> for a real voice{/if}
@@ -316,6 +341,11 @@ $effect(() => {
     font-style: normal;
     color: var(--muted);
     margin-left: 4px;
+  }
+  .range2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
   .note {
     margin: -6px 0 14px;

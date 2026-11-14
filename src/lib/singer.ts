@@ -12,7 +12,14 @@
 // the passage's accent melody (core/accent.ts accentMelody). Notes are polyphonic — each
 // rings out to its end even when the next starts — so fast typing doesn't cut them off.
 
-import { TONIC } from "./core/accent.ts";
+import {
+  clampRange,
+  DEFAULT_RANGE,
+  degreeSemis,
+  fitToRange,
+  topDegree,
+  type VoiceRange,
+} from "./core/accent.ts";
 import { estimateF0 } from "./core/f0.ts";
 import { type OtoEntry, OtoIndex, type Voicebank } from "./core/oto.ts";
 import { Melody, type Onset, type Syllable, syllables, type Vowel } from "./core/voice.ts";
@@ -285,6 +292,7 @@ export class Singer {
   private lastSemis = 0;
   private lastVowel: Vowel | null = null;
   private volume = 0.4;
+  private range: VoiceRange = DEFAULT_RANGE;
   /** Rendered notes as blob URLs; each play gets its own element so notes overlap. */
   private readonly cache = new Map<string, Promise<string | null>>();
   /** Notes still sounding, oldest first. */
@@ -292,6 +300,10 @@ export class Singer {
 
   setVolume(v: number): void {
     this.volume = Math.max(0, Math.min(1, v));
+  }
+
+  setRange(r: VoiceRange): void {
+    this.range = clampRange(r);
   }
 
   /**
@@ -313,17 +325,20 @@ export class Singer {
       // ー holds the same pitch; everything else takes the next melody note
       const note = notes?.[s.at];
       const semis =
-        note !== undefined ? note : s.hold ? this.lastSemis : TONIC + Math.min(16, this.melody.next());
+        note !== undefined ? note : s.hold ? this.lastSemis : fitToRange(this.melody.next(), this.range);
       this.lastSemis = semis;
       this.play(s, semis, delay);
     });
   }
 
-  /** A short "ra-ra-ra" so the volume can be checked from settings. */
+  /** A short "ra-ra-ra" so volume and range can be checked from settings. */
   preview(): void {
     this.melody.reset();
-    // an accent-like phrase in F: D5 up to F5, held
-    const notes = [5, 8, 8, 8];
+    // an accent-like phrase near the top of the range: a step under, up, held
+    const { low, high } = this.range;
+    const d = topDegree(high - low);
+    const top = low + degreeSemis(d);
+    const notes = [low + degreeSemis(d - 1), top, top, top];
     ["ら", "ら", "ら", "ー"].forEach((k, i) => {
       setTimeout(() => this.sing(k, [notes[i] as number]), i * 170);
     });

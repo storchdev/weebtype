@@ -251,17 +251,32 @@ export function accentContour(tokens: Token[]): number[] {
 
 /** Major pentatonic steps; degrees continue into the next octave. */
 const PENTATONIC = [0, 2, 4, 7, 9] as const;
-/** Tonic of the key, in semitones from A4 (F4). */
-export const TONIC = -4;
-/** Range the phrase tops wander in (scale degrees): C5 … G5 in F. */
-const TOP_MIN = 3;
-const TOP_MAX = 6;
-const TOP_START = 5;
+
+/** Singing range in semitones from A4; the key's tonic is the lowest note. */
+export interface VoiceRange {
+  low: number;
+  high: number;
+}
+/** Default: D4–E5, in D major pentatonic. */
+export const DEFAULT_RANGE: VoiceRange = { low: -7, high: 7 };
+/** Sanitises a user range: −24…+24 semitones from A4, at least a fifth wide. */
+export function clampRange(r: VoiceRange): VoiceRange {
+  const low = Math.max(-24, Math.min(17, Math.round(r.low)));
+  const high = Math.max(low + 7, Math.min(24, Math.round(r.high)));
+  return { low, high };
+}
 
 /** Semitones above the tonic of a pentatonic scale degree (may be negative). */
 export function degreeSemis(d: number): number {
   const oct = Math.floor(d / PENTATONIC.length);
   return oct * 12 + (PENTATONIC[d - oct * PENTATONIC.length] as number);
+}
+
+/** Highest scale degree that fits in `span` semitones. */
+export function topDegree(span: number): number {
+  let d = 0;
+  while (degreeSemis(d + 1) <= span) d++;
+  return d;
 }
 
 /** Degrees below the phrase top for each accent level. */
@@ -272,32 +287,54 @@ function stepFor(level: number): number {
 }
 
 /**
- * The accent contour sung as a melody: notes in semitones from A4, snapped to F major
- * pentatonic. Every rise and drop of the accent is kept (high = phrase top, the
- * phrase-initial low one step under, the drop two steps under), while the phrase tops
- * themselves walk gently — starting high on each sentence and tending downward — so it
- * sounds like a tune rather than two alternating notes. Deterministic per passage.
+ * The accent contour sung as a melody: notes in semitones from A4, in the major
+ * pentatonic of `range.low`, never outside the range. Every rise and drop of the accent
+ * is kept (high = phrase top, the phrase-initial low one step under, the drop two steps
+ * under), while the phrase tops walk gently — high at each sentence start, tending
+ * downward — so it sounds like a tune rather than two alternating notes. Deterministic.
  */
-export function accentMelody(tokens: Token[]): number[] {
+export function accentMelody(tokens: Token[], range: VoiceRange = DEFAULT_RANGE): number[] {
+  const { low, high } = clampRange(range);
+  const maxDeg = topDegree(high - low);
+  // tops wander in the upper part of the range, leaving room for the drops below them
+  const topMax = maxDeg;
+  const topMin = Math.min(topMax, Math.max(3, maxDeg - 3));
+  const topStart = Math.max(topMin, topMax - 1);
   const marks = accentMarks(tokens);
   const tops: number[] = [];
-  let top = TOP_START;
+  let top = topStart;
   let lastSentence = 0;
   let lastPhrase = -1;
   return marks.map((m) => {
     if (m.phrase !== lastPhrase) {
-      if (m.sentence !== lastSentence || lastPhrase < 0) top = TOP_START;
+      if (m.sentence !== lastSentence || lastPhrase < 0) top = topStart;
       else {
         // a small hash so the walk is varied but repeatable
         const h = (Math.imul(m.phrase + 1, 2654435761) >>> 0) % 5;
         const move = [-1, -1, 0, 1, -2][h] as number;
-        top = Math.max(TOP_MIN, Math.min(TOP_MAX, top + move));
-        if (top === tops[tops.length - 1] && top === tops[tops.length - 2]) top += top > TOP_MIN ? -1 : 1;
+        top = Math.max(topMin, Math.min(topMax, top + move));
+        if (top === tops[tops.length - 1] && top === tops[tops.length - 2]) top += top > topMin ? -1 : 1;
+        top = Math.min(topMax, top);
       }
       tops.push(top);
       lastPhrase = m.phrase;
       lastSentence = m.sentence;
     }
-    return TONIC + degreeSemis(top + stepFor(m.level));
+    return low + degreeSemis(Math.max(0, top + stepFor(m.level)));
   });
+}
+
+/** Fits a free-running pentatonic note (semitones above a tonic, ≥ 0) into the range. */
+export function fitToRange(semisAboveTonic: number, range: VoiceRange = DEFAULT_RANGE): number {
+  const { low, high } = clampRange(range);
+  let n = semisAboveTonic;
+  while (low + n > high && n >= 12) n -= 12;
+  return Math.min(high, low + n);
+}
+
+/** Note name for semitones from A4 ("D4", "C#5"). */
+export function noteName(semis: number): string {
+  const names = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
+  const i = ((semis % 12) + 12) % 12;
+  return `${names[i]}${4 + Math.floor((semis + 9) / 12)}`;
 }

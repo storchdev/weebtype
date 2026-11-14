@@ -107,7 +107,7 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   aliases may carry pitch/expression suffixes (`- かA4`, `a かS`) — `baseAlias` strips them.
   Pitch-suffixed/note-named folders are kept as pitch sets (`pitchTag`), other suffixes
   (S/W expressions) are dropped; `OtoIndex.find(s, targetHz, mainHz)` picks the nearest set.
-- Singer notes are absolute semitones from A4 (`accentMelody`, F pentatonic). `Singer.play` makes a
+- Singer notes are absolute semitones from A4 (`accentMelody`, major pentatonic of the user's lowest note; range from settings `voiceLow`/`voiceHigh`). `Singer.play` makes a
   new `Audio` per note from a cached blob URL so notes overlap — don't go back to one shared element.
 - Sound is **only** played via `<audio>` elements (files or rendered WAV blobs). Don't connect
   live Web Audio to `ctx.destination` — it was silent on the user's Chromium/PipeWire.
