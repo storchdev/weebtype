@@ -50,7 +50,7 @@ $effect(() => {
   root.setProperty("--main-top", `${topPad}px`);
   root.setProperty("--stage-h", `${stageH}px`);
   // the stage stands on the footer, which wraps to two lines on phones
-  root.setProperty("--stage-bottom", `${narrow ? 66 : 44}px`);
+  root.setProperty("--stage-bottom", `${narrow ? 82 : 58}px`);
 });
 // phones: text no bigger than ~13 characters across
 const fontSize = $derived(Math.min(settings.fontSize, Math.max(20, Math.round((winW - 40) / 13))));
