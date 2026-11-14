@@ -15,7 +15,7 @@ your PATH for the one-time dictionary download.
 
 ```sh
 bun install   # deps + git hooks
-bun start     # build, serve on http://127.0.0.1:5174 and open the browser
+bun start     # build, serve on http://127.0.0.1:6494 and open the browser
 ```
 
 On the first run, `bun start` (and `bun dev`) downloads Jitendex (~40 MB) and the Kanjium
@@ -23,7 +23,7 @@ pitch-accent list and builds `data/` (~60 MB, takes a few seconds). After that i
 Run `bun run data:setup --force` to update to the latest Jitendex, or pass
 `--jitendex file.zip` / `--pitch accents.txt` to use files you already downloaded.
 
-Use `bun dev` for development (Vite on 5173 with hot reload, API on 5174).
+Use `bun dev` for development (Vite on 5173 with hot reload, API on 6494).
 `bun run check`, `bun test` and `bun run lint` must pass before you commit. See
 [AGENTS.md](AGENTS.md) and [PLAN.md](PLAN.md).
 

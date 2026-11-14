@@ -136,6 +136,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Default port 5174 → 6494 (おうよう 応用 on the JIS kana number row); `WEEBTYPE_PORT` still overrides.
+
 - 2026-11-14 — Singer: vowel lengthening (い after e, う after o…) no longer applies everywhere — user found it unreliable. Now only inside a single kanji's reading (先生, 中, 父); across kanji/words and in kana it's sung as written.
 
 - 2026-11-14 — Singer: long heiban plateaus drift down (declination) instead of holding one note for many morae.

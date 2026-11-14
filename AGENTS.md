@@ -41,8 +41,8 @@ current word. Full scope, decisions and progress: **[PLAN.md](PLAN.md)**. Read i
 | Command                              | Does                                                                     |
 | ------------------------------------ | ------------------------------------------------------------------------ |
 | `bun install`                        | Install deps + git hooks                                                 |
-| `bun dev`                            | Vite (5173, proxies `/api`) + `bun --watch` API server (5174)            |
-| `bun start`                          | Build frontend, serve everything from Bun on 5174, open browser          |
+| `bun dev`                            | Vite (5173, proxies `/api`) + `bun --watch` API server (6494)            |
+| `bun start`                          | Build frontend, serve everything from Bun on 6494, open browser          |
 | `bun run serve`                      | Serve existing `dist/` + API without rebuilding                          |
 | `bun run check`                      | `tsc --noEmit` + `svelte-check --fail-on-warnings`                       |
 | `bun test`                           | Unit tests (`tests/`)                                                    |

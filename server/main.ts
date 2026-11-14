@@ -8,7 +8,8 @@ import { PassageService } from "./passages.ts";
 import { Tatoeba } from "./tatoeba.ts";
 import { loadVoicebank, samplePath } from "./voicebank.ts";
 
-const PORT = Number(process.env.WEEBTYPE_PORT ?? 5174);
+// 6494 = おうよう (応用, "application") typed on the JIS kana number row (お6 う4 よ9 う4)
+const PORT = Number(process.env.WEEBTYPE_PORT ?? 6494);
 const DIST = join(import.meta.dir, "..", "dist");
 const service = new PassageService();
 let dictLoaded = false;
