@@ -431,7 +431,7 @@ const remaining = $derived(Math.max(0, total - landed));
   /* both stand in the stage band (--stage-h, App.svelte) at the column's edges */
   .singer {
     position: absolute;
-    left: max(10px, calc(50vw - 500px));
+    left: max(20px, calc(50vw - 500px));
     bottom: var(--stage-bottom, 44px);
     width: calc(var(--stage-h) * 0.75);
   }
@@ -546,7 +546,7 @@ const remaining = $derived(Math.max(0, total - landed));
   /* ---- boss ---- */
   .boss {
     position: absolute;
-    right: max(10px, calc(50vw - 500px));
+    right: max(20px, calc(50vw - 500px));
     bottom: var(--stage-bottom, 44px);
     width: calc(var(--stage-h) * 0.82);
   }
