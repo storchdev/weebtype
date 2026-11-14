@@ -55,3 +55,20 @@ test("trimToLength cuts at a sentence end", () => {
   const tokens = [...sentence, ...sentence, ...sentence, ...sentence];
   expect(trimToLength(tokens, 10).length).toBe(4);
 });
+
+test("trimToLength keeps the closing quote and never cuts inside one", () => {
+  const tok = (t: string, r = t) => ({ groups: [{ t, r }] });
+  // 「あいうえおかきくけこ。さしすせそ。」たちつてと。
+  const tokens = [
+    tok("「"),
+    tok("あいうえおかきくけこ"),
+    tok("。"),
+    tok("さしすせそ"),
+    tok("。"),
+    tok("」"),
+    tok("たちつてと"),
+    tok("。"),
+  ];
+  const cut = trimToLength(tokens, 10);
+  expect(cut.map((t) => t.groups[0]?.t).join("")).toBe("「あいうえおかきくけこ。さしすせそ。」");
+});

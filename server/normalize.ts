@@ -114,17 +114,35 @@ export function normalizeTokens(raw: RawToken[], checker: ReadingChecker | null)
 }
 
 /** Trim a passage to roughly `target` kana, cutting at a sentence end. */
+const OPENERS = new Set(["「", "『", "（"]);
+const CLOSERS = new Set(["」", "』", "）"]);
+
+/**
+ * Cuts the passage at a sentence end near `target` kana. A sentence end inside a quote
+ * only counts once the quote closes, and the closing brackets after 。 stay with it
+ * (「…。」 never loses its 」).
+ */
 export function trimToLength(tokens: Token[], target: number): Token[] {
   let kana = 0;
   let lastEnd = -1;
+  let depth = 0;
+  let endPending = false; // just saw 。！？ — closers that follow still belong to it
   for (let i = 0; i < tokens.length; i++) {
     const tok = tokens[i] as Token;
     for (const g of tok.groups) kana += g.r.length;
-    const t = tok.groups[0]?.t;
-    if (t === "。" || t === "！" || t === "？") {
-      if (kana >= target * 0.8) return tokens.slice(0, i + 1);
-      lastEnd = i;
-    }
+    const t = tok.groups.map((g) => g.t).join("");
+    if (OPENERS.has(t)) depth++;
+    if (CLOSERS.has(t)) depth = Math.max(0, depth - 1);
+    const isEnd = t === "。" || t === "！" || t === "？";
+    if (isEnd || (endPending && CLOSERS.has(t))) {
+      endPending = true;
+      const next = tokens[i + 1];
+      const closerFollows = next !== undefined && CLOSERS.has(next.groups.map((g) => g.t).join(""));
+      if (depth === 0 && !closerFollows) {
+        if (kana >= target * 0.8) return tokens.slice(0, i + 1);
+        lastEnd = i;
+      }
+    } else endPending = false;
     if (kana > target * 1.5 && lastEnd >= 0) return tokens.slice(0, lastEnd + 1);
   }
   return tokens;

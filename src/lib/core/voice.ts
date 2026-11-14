@@ -2,7 +2,7 @@
 // vowel) and a small pentatonic melody that wanders as you type. The Web Audio
 // side lives in src/lib/singer.ts.
 
-import { isPunct } from "./kana.ts";
+import { isPunct, toHiragana } from "./kana.ts";
 import { splitUnits } from "./romaji.ts";
 
 export type Vowel = "a" | "i" | "u" | "e" | "o";
@@ -29,7 +29,18 @@ export interface Syllable {
   vowel: Vowel | "n" | null;
   /** Offset of the syllable's first char in the input text. */
   at: number;
+  /** Continues the previous vowel (ー, or the second mora of じゅう/せい/かあ): no new attack. */
+  hold?: boolean;
 }
+
+/** Vowel kana that lengthen the vowel before them: う after u/o, い after e/i, or the same vowel. */
+const LENGTHENS: Record<string, readonly Vowel[]> = {
+  あ: ["a"],
+  い: ["i", "e"],
+  う: ["u", "o"],
+  え: ["e"],
+  お: ["o"],
+};
 
 const VOWELS = "aiueo";
 
@@ -63,7 +74,7 @@ export function syllables(text: string, prev: Vowel | null = null): Syllable[] {
     const here = at;
     at += u.kana.length;
     if (u.kana === "ー" || u.kana === "〜") {
-      if (last) out.push({ kana: u.kana, onset: "none", consonant: "", vowel: last, at: here });
+      if (last) out.push({ kana: u.kana, onset: "none", consonant: "", vowel: last, at: here, hold: true });
       continue;
     }
     if (isPunct(u.kana)) continue;
@@ -79,6 +90,12 @@ export function syllables(text: string, prev: Vowel | null = null): Syllable[] {
     const v = r[r.length - 1] ?? "";
     if (!VOWELS.includes(v) || r.length === 0) continue; // digits, latin…
     const consonant = r.slice(0, -1);
+    const lengthens = LENGTHENS[toHiragana(u.kana)];
+    if (last && lengthens?.includes(last)) {
+      // おう is sung "oo", せい "ee": keep the previous vowel and just hold it
+      out.push({ kana: u.kana, onset: "none", consonant: "", vowel: last, at: here, hold: true });
+      continue;
+    }
     out.push({ kana: u.kana, onset: onsetOf(consonant), consonant, vowel: v as Vowel, at: here });
     last = v as Vowel;
   }

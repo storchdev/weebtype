@@ -143,7 +143,11 @@ export class OtoIndex {
   find(s: Syllable, targetHz?: number, mainHz?: number | null): OtoEntry | null {
     if (s.vowel === null) return null;
     const kana =
-      s.kana === "ー" || s.kana === "〜" ? VOWEL_KANA[s.vowel] : s.vowel === "n" ? "ん" : toHiragana(s.kana);
+      s.hold || s.kana === "ー" || s.kana === "〜"
+        ? VOWEL_KANA[s.vowel]
+        : s.vowel === "n"
+          ? "ん"
+          : toHiragana(s.kana);
     const romaji = s.vowel === "n" ? "n" : s.consonant + s.vowel;
     let best: OtoEntry | null = null;
     let bestDist = Number.POSITIVE_INFINITY;

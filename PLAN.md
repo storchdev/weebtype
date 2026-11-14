@@ -119,11 +119,12 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 ### M7 — Feedback round (2026-11-14)
 
 - [x] Romaji: every phonetic spelling of a kana pair works without x/l (ディ `di`, トゥ `tu`, ぢゃ `ja`, いぇ `ye`, ぢ `ji`, づ `zu`, を `o`…)
-- [ ] Singer: long vowels (じゅう, きょう, とおい, ー) glide on as one held syllable instead of re-attacking a new `u`
+- [x] Singer: long vowels (じゅう, きょう, とおい, ー) glide on as one held syllable instead of re-attacking a new `u`
 - [ ] Singer: voice range setting (lowest/highest note); default a bit lower than F4–G5
 - [ ] Battle: singer and boss larger; kana fly a low, nearly straight path so they don't cross the text
 - [ ] Battle layout: rebalance the dictionary panel vs. the battle stage so neither fights the text
 - [ ] Mobile: respectable layout on phones (≤ 480 px) and a way to type with the on-screen keyboard
+- [x] Passage trimming keeps a closing 」 after 。 and never cuts inside a quote
 - [ ] Later: particle は sung as "wa" (and へ as "e")
 
 ## Open questions / later
@@ -133,6 +134,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - Furigana-over-kanji toggle on the target text for beginners?
 
 ## Log
+- 2026-11-14 — Fix: passages ending in 「…。」 lost the final 」 (trimToLength cut right after 。); it now cuts only outside quotes. Singer holds long vowels (じゅう, せい, ー) as one glide.
 - 2026-11-14 — Singer fixes after "not lyrical, cut off, low and breathy": `accentMelody` (F major pentatonic, absolute notes, accent shape kept), voicebank pitch sets (Kumi: D4 core + A3/A4/D5; Strong/Whisper excluded) chosen per note, rendered notes within ~0.4 st of target, notes ring ~0.4 s and overlap (≤6), consonant lead capped at 110 ms.
 
 - 2026-11-14 — Settings → Generator gains `tatoeba` (no AI): loads via `/api/fallback` only, never `/api/passage`/`/api/prefetch`, even when claude/codex are installed.

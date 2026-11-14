@@ -56,3 +56,16 @@ describe("melody", () => {
     expect([0, 12]).toContain(m.next());
   });
 });
+
+test("long vowels hold the previous syllable instead of a new one", () => {
+  const juu = syllables("じゅう");
+  expect(juu.map((s) => [s.kana, s.vowel, !!s.hold])).toEqual([
+    ["じゅ", "u", false],
+    ["う", "u", true],
+  ]);
+  // across separate calls (typed one kana at a time)
+  expect(syllables("う", "o")[0]?.hold).toBe(true);
+  expect(syllables("い", "e")[0]).toMatchObject({ vowel: "e", hold: true });
+  expect(syllables("い", "a")[0]?.hold).toBeFalsy();
+  expect(syllables("ー", "a")[0]?.hold).toBe(true);
+});

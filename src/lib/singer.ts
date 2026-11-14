@@ -117,7 +117,7 @@ function buildNote(
 
   const env = ctx.createGain();
   env.gain.setValueAtTime(0, voiceAt);
-  env.gain.linearRampToValueAtTime(1, voiceAt + (s.onset === "nasal" ? 0.03 : 0.012));
+  env.gain.linearRampToValueAtTime(1, voiceAt + (s.hold ? 0.06 : s.onset === "nasal" ? 0.03 : 0.012));
   env.gain.setValueAtTime(1, end - 0.05);
   env.gain.exponentialRampToValueAtTime(0.001, end + 0.06);
   env.connect(out);
@@ -246,7 +246,7 @@ function mainHz(bank: LoadedBank): Promise<number | null> {
 }
 
 /** Cuts a note from a voicebank sample and resamples it to `targetHz`. */
-async function renderSample(e: OtoEntry, s: Sample, targetHz: number): Promise<Float32Array> {
+async function renderSample(e: OtoEntry, s: Sample, targetHz: number, hold = false): Promise<Float32Array> {
   const f0 = sampleF0(s, e) ?? targetHz;
   const rate = Math.max(0.5, Math.min(2, targetHz / f0));
   const total = s.data.length / s.rate;
@@ -254,8 +254,9 @@ async function renderSample(e: OtoEntry, s: Sample, targetHz: number): Promise<F
   const end = e.cutoff < 0 ? off - e.cutoff / 1000 : total - e.cutoff / 1000;
   const fullLead = Math.max(e.consonant, e.preutter) / 1000;
   // start at most MAX_LEAD before the vowel: anything earlier is breath/silence
-  const lead = Math.min(fullLead, MAX_LEAD);
-  const start = off + fullLead - lead;
+  // a held vowel starts inside the vowel (no consonant, no attack)
+  const lead = hold ? 0 : Math.min(fullLead, MAX_LEAD);
+  const start = off + fullLead - lead + (hold ? 0.03 : 0);
   // consonant as recorded, then about one note of vowel (both in source time)
   const srcDur = Math.max(0.05, Math.min(end - start, lead + (BANK_NOTE_LEN + 0.08) * rate));
   const outDur = srcDur / rate;
@@ -267,7 +268,7 @@ async function renderSample(e: OtoEntry, s: Sample, targetHz: number): Promise<F
   src.playbackRate.value = rate;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, 0);
-  g.gain.linearRampToValueAtTime(1, 0.006);
+  g.gain.linearRampToValueAtTime(1, hold ? 0.06 : 0.006);
   g.gain.setValueAtTime(1, Math.max(0.01, outDur - 0.12));
   g.gain.linearRampToValueAtTime(0, outDur);
   src.connect(g).connect(ctx.destination);
@@ -312,11 +313,7 @@ export class Singer {
       // ー holds the same pitch; everything else takes the next melody note
       const note = notes?.[s.at];
       const semis =
-        note !== undefined
-          ? note
-          : s.kana === "ー" || s.kana === "〜"
-            ? this.lastSemis
-            : TONIC + Math.min(16, this.melody.next());
+        note !== undefined ? note : s.hold ? this.lastSemis : TONIC + Math.min(16, this.melody.next());
       this.lastSemis = semis;
       this.play(s, semis, delay);
     });
@@ -347,16 +344,17 @@ export class Singer {
     return voicebank().then(async (bank) => {
       const hz = hzOf(semis);
       const entry = bank ? bank.index.find(s, hz, await mainHz(bank)) : null;
+      const h = s.hold ? "|hold" : "";
       const key = entry
-        ? `${entry.file}|${entry.alias}|${semis}`
-        : `${s.onset}|${s.consonant}|${s.vowel}|${semis}`;
+        ? `${entry.file}|${entry.alias}|${semis}${h}`
+        : `${s.onset}|${s.consonant}|${s.vowel}|${semis}${h}`;
       let url = this.cache.get(key);
       if (!url) {
         url = (async () => {
           let data: Float32Array | null = null;
           if (entry) {
             const sample = await loadSample(entry.file);
-            if (sample) data = await renderSample(entry, sample, hz);
+            if (sample) data = await renderSample(entry, sample, hz, s.hold);
           }
           data ??= await renderSyllable(s, semis);
           return URL.createObjectURL(encodeWav(data, SAMPLE_RATE));
