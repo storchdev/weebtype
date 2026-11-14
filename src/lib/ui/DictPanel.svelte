@@ -33,6 +33,20 @@ const POS: Array<[RegExp, string]> = [
   [/^interjection/, "int."],
   [/^expression/, "exp."],
 ];
+// Example sentences carry furigana per kanji (日|曜|日); joined, the word doesn't get
+// torn apart when the reading is wider than its kanji.
+const exampleSegs = $derived.by(() => {
+  const out: Array<{ t: string; r?: string; k?: boolean }> = [];
+  for (const seg of entry?.example?.j ?? []) {
+    const last = out[out.length - 1];
+    if (seg.r && last?.r && !!seg.k === !!last.k) {
+      last.t += seg.t;
+      last.r += seg.r;
+    } else out.push({ ...seg });
+  }
+  return out;
+});
+
 const pos = $derived.by(() => {
   const out: string[] = [];
   for (const t of entry?.tags ?? []) {
@@ -90,7 +104,7 @@ const others = $derived(
           {#if entry.example}
             <div class="example">
               <span class="ex-jp"
-                >{#each entry.example.j as seg}{#if seg.r}<ruby class:kw={seg.k}>{seg.t}<rt>{seg.r}</rt></ruby
+                >{#each exampleSegs as seg}{#if seg.r}<ruby class:kw={seg.k}>{seg.t}<rt>{seg.r}</rt></ruby
                     >{:else}<span class:kw={seg.k}>{seg.t}</span>{/if}{/each}</span
               >
               <span class="ex-en">{entry.example.t}</span>
@@ -211,8 +225,6 @@ const others = $derived(
   }
   .senses {
     min-width: 0;
-    /* defs sit level with the headword, not the small reading above it */
-    padding-top: calc(1.6em * 12 / 13 + 4px);
   }
   .defline {
     display: flex;
