@@ -97,8 +97,9 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   (URL from the request's `endpoint`, else `WEEBTYPE_LLAMA_URL`, else `http://127.0.0.1:8080`).
 - Prompts are `{system, user}` (`buildPrompt`): `SYSTEM_PROMPT` must stay byte-identical across requests
   (it is the cached prefix) — put anything per-request (level, length, variety, recents) in `user`.
-- Unserved ready passages persist to `data/cache/passages.json` (`PassageService(cacheFile)`; tests pass
-  none). Bump `CACHE_VERSION` in `server/passages.ts` if the `Passage` shape changes incompatibly.
+- Untyped passages persist to `data/cache/passages.json` (`PassageService(cacheFile)`; tests pass
+  none). Served passages are leased: App calls `consumePassage` on TypingArea's `onstart` and
+  `releasePassage` (beacon) when leaving an untyped AI passage — keep that pairing if you add new ways to load one. Bump `CACHE_VERSION` in `server/passages.ts` if the `Passage` shape changes incompatibly.
 - Don't `pkill -f "bun server/main.ts"` from an agent shell — the pattern matches the shell itself.
 - `data/` is built only from public sources (Jitendex Yomitan zip, Kanjium `accents.txt`) by
   `scripts/setup-data.ts`; never make setup depend on a local path. Formats are documented in

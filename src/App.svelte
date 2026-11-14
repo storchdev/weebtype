@@ -1,6 +1,14 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import { fetchFallback, fetchHealth, fetchPassage, prefetch, requestFor } from "./lib/api.ts";
+import {
+  consumePassage,
+  fetchFallback,
+  fetchHealth,
+  fetchPassage,
+  prefetch,
+  releasePassage,
+  requestFor,
+} from "./lib/api.ts";
 import type { Stats, TypingSession } from "./lib/core/session.ts";
 import type { HealthResponse, Passage } from "./lib/core/types.ts";
 import { fontFamily } from "./lib/fonts.ts";
@@ -71,8 +79,23 @@ $effect(() => {
 // ---- passages --------------------------------------------------------------
 const genKey = $derived(JSON.stringify([requestFor(settings), offlineOnly(settings)]));
 let loadedKey = "";
+/** Id of the AI passage on screen while it is still untyped (the server holds it until typed). */
+let untyped: string | null = null;
 
-async function loadPassage(): Promise<void> {
+/** Hand the on-screen passage back to the server's cache if it was never typed. */
+function releaseUntyped(skipped: boolean): void {
+  if (untyped) releasePassage(untyped, skipped);
+  untyped = null;
+}
+
+function typingStarted(): void {
+  if (untyped) consumePassage(untyped);
+  untyped = null;
+}
+
+/** `skipped`: the user asked for a different passage (vs. settings changed / first load). */
+async function loadPassage(skipped = true): Promise<void> {
+  releaseUntyped(skipped);
   abort?.abort();
   const ctrl = new AbortController();
   abort = ctrl;
@@ -90,6 +113,7 @@ async function loadPassage(): Promise<void> {
     const res = await fetchPassage(requestFor(settings), ctrl.signal);
     if (ctrl.signal.aborted) return;
     passage = res.passage;
+    if (res.passage.source !== "tatoeba" && res.passage.source !== "builtin") untyped = res.passage.id;
     warning = res.warning ?? "";
     startRun();
   } catch (e) {
@@ -101,6 +125,7 @@ async function loadPassage(): Promise<void> {
 }
 
 async function useOffline(): Promise<void> {
+  releaseUntyped(true);
   abort?.abort();
   loading = false;
   try {
@@ -133,7 +158,7 @@ function finish(stats: Stats, session: TypingSession): void {
 
 function closeSettings(): void {
   settingsOpen = false;
-  if (genKey !== loadedKey && view !== "history") void loadPassage();
+  if (genKey !== loadedKey && view !== "history") void loadPassage(false);
   else if (!offlineOnly(settings)) prefetch(requestFor(settings));
 }
 
@@ -179,7 +204,11 @@ $effect(() => {
 
 onMount(() => {
   void fetchHealth(settings.llamaUrl).then((h) => (health = h));
-  void loadPassage();
+  void loadPassage(false);
+  // Closing the tab without typing: the passage goes back to the front of the queue.
+  const leave = () => releaseUntyped(false);
+  window.addEventListener("pagehide", leave);
+  return () => window.removeEventListener("pagehide", leave);
 });
 
 const sourceLabel = $derived.by(() => {
@@ -292,6 +321,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
             onfinish={finish}
             onrestart={startRun}
             onnew={() => void loadPassage()}
+            onstart={typingStarted}
             onime={(on) => (imeOn = on)}
             onkey={settings.keySounds ? (ok) => playKey(settings.keyVolume / 100, !ok) : undefined}
             onkana={settings.battle ? (k, done, total) => battle?.fire(k, done, total) : undefined}

@@ -32,6 +32,19 @@ export async function fetchFallback(req: GenerateRequest): Promise<Passage> {
   return (await post<{ passage: Passage }>("/api/fallback", req)).passage;
 }
 
+/** Typing started on this passage: the server may drop it from its cache. */
+export function consumePassage(id: string): void {
+  post("/api/passage/consume", { id }).catch(() => {});
+}
+
+/**
+ * Leaving this passage untyped: the server keeps it. `skipped` = the user asked for another
+ * one. Uses sendBeacon so it still goes out while the page is closing.
+ */
+export function releasePassage(id: string, skipped: boolean): void {
+  navigator.sendBeacon("/api/passage/release", JSON.stringify({ id, skipped }));
+}
+
 export function prefetch(req: GenerateRequest): void {
   post("/api/prefetch", req).catch(() => {});
 }

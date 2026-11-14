@@ -39,6 +39,10 @@ function isPassage(v: unknown): v is Passage {
 export class PassageService {
   private readonly ready = new Map<string, Passage[]>();
   private readonly pending = new Map<string, Pending[]>();
+  /** Served to the client but not typed yet, by passage id. Dropped only by `consume`. */
+  private readonly leased = new Map<string, { key: string; passage: Passage }>();
+  /** Shown and skipped without typing: not served again this run, but kept (restored on restart). */
+  private readonly skipped = new Map<string, Passage[]>();
   dict: Dictionary | null = null;
   tatoeba: Tatoeba | null = null;
   readonly variety = new Variety();
@@ -69,13 +73,22 @@ export class PassageService {
     return n;
   }
 
-  /** Write the ready queues to disk (serialised; atomic rename). */
+  /**
+   * Write every untyped passage to disk (serialised; atomic rename): the ready queues, then
+   * passages on loan to the client, then skipped ones — all come back as ready on restart.
+   */
   private persist(): void {
     const file = this.cacheFile;
     if (!file) return;
     this.saving = this.saving.then(async () => {
       const ready: Record<string, Passage[]> = {};
-      for (const [k, list] of this.ready) if (list.length) ready[k] = list;
+      const add = (k: string, p: Passage) => {
+        ready[k] ??= [];
+        ready[k].push(p);
+      };
+      for (const [k, list] of this.ready) for (const p of list) add(k, p);
+      for (const { key: k, passage } of this.leased.values()) add(k, passage);
+      for (const [k, list] of this.skipped) for (const p of list) add(k, p);
       try {
         await mkdir(dirname(file), { recursive: true });
         const tmp = `${file}.tmp`;
@@ -85,6 +98,34 @@ export class PassageService {
         console.warn(`[passages] couldn't save cache: ${String(e)}`);
       }
     });
+  }
+
+  private lease(k: string, passage: Passage): Passage {
+    this.leased.set(passage.id, { key: k, passage });
+    this.persist();
+    return passage;
+  }
+
+  /** The user started typing this passage: it's used up. */
+  consume(id: string): void {
+    if (this.leased.delete(id)) this.persist();
+  }
+
+  /**
+   * The client moved on without typing it. `skipped` (the user asked for a different one):
+   * park it so this run doesn't show it again; otherwise (tab closed, settings changed,
+   * request cancelled) put it back at the front of its queue.
+   */
+  release(id: string, skipped: boolean): void {
+    const l = this.leased.get(id);
+    if (!l) return;
+    this.leased.delete(id);
+    const map = skipped ? this.skipped : this.ready;
+    const list = map.get(l.key) ?? [];
+    if (skipped) list.push(l.passage);
+    else list.unshift(l.passage);
+    map.set(l.key, list.slice(skipped ? -MAX_READY : 0, skipped ? undefined : MAX_READY));
+    this.persist();
   }
 
   /** Resolves once pending cache writes are on disk. */
@@ -214,19 +255,20 @@ export class PassageService {
     const q = this.ready.get(k);
     const ready = q?.shift();
     if (ready) {
-      this.persist();
       this.prefetch(req);
-      return { passage: ready };
+      return { passage: this.lease(k, ready) };
     }
     const pend = this.pending.get(k)?.find((p) => !p.claimed) ?? this.startOne(req);
     pend.claimed = true;
     try {
       const passage = await pend.promise;
       this.prefetch(req);
-      return { passage };
+      return { passage: this.lease(k, passage) };
     } catch (err) {
+      // A passage skipped earlier beats an offline sentence.
+      const old = this.skipped.get(k)?.shift();
       return {
-        passage: this.fallback(req),
+        passage: old ? this.lease(k, old) : this.fallback(req),
         warning: `Couldn't generate with ${req.backend}: ${err instanceof Error ? err.message : String(err)}`,
       };
     }

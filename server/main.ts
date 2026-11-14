@@ -91,7 +91,10 @@ const server = Bun.serve({
         if (r instanceof Response) return r;
         await dictReady;
         await cacheReady;
-        return Response.json(await service.get(r));
+        const res = await service.get(r);
+        // The client gave up waiting (settings changed, new passage): keep it for later.
+        if (req.signal.aborted) service.release(res.passage.id, false);
+        return Response.json(res);
       },
     },
     "/api/prefetch": {
@@ -102,6 +105,26 @@ const server = Bun.serve({
         await cacheReady;
         service.prefetch(r);
         return Response.json(service.status(r));
+      },
+    },
+    // The client reports what happened to a served passage: typing started (`consume`), or it
+    // was left untyped (`release`; `skipped` = the user asked for another one).
+    "/api/passage/consume": {
+      POST: async (req) => {
+        const b = (await req.json().catch(() => null)) as { id?: unknown } | null;
+        if (typeof b?.id === "string") service.consume(b.id);
+        return Response.json({ ok: true });
+      },
+    },
+    "/api/passage/release": {
+      POST: async (req) => {
+        // sendBeacon posts text/plain; parse the body ourselves.
+        let b: { id?: unknown; skipped?: unknown } | null = null;
+        try {
+          b = JSON.parse(await req.text());
+        } catch {}
+        if (typeof b?.id === "string") service.release(b.id, b.skipped === true);
+        return Response.json({ ok: true });
       },
     },
     "/api/fallback": {

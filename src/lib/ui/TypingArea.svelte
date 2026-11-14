@@ -22,6 +22,8 @@ interface Props {
   onime: (on: boolean) => void;
   /** Newly completed kana (one call per accepted key that finishes any), with progress after it. */
   onkana?: (kana: string, done: number, total: number) => void;
+  /** The first key of this run was pressed (typing has started). */
+  onstart?: () => void;
   /** Every typing key, accepted or not (for key sounds). */
   onkey?: (ok: boolean) => void;
   /** Main area's top padding (clear of the branch), px. */
@@ -45,6 +47,7 @@ let {
   onnew,
   onime,
   onkana,
+  onstart,
   onkey,
   reserveTop,
   reserveBottom,
@@ -249,9 +252,11 @@ function onKey(e: KeyboardEvent): void {
 function press(key: string): void {
   const before = cur;
   const doneBefore = snap.kanaDone;
+  const wasStarted = snap.started;
   const ok = session.press(key, performance.now());
   onkey?.(ok);
   snap = session.snapshot();
+  if (!wasStarted && snap.started) onstart?.();
   if (onkana && snap.kanaDone > doneBefore) {
     onkana(session.target.slice(doneBefore, snap.kanaDone), snap.kanaDone, session.target.length);
   }
