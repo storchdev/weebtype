@@ -6,7 +6,7 @@ import type { HealthResponse, Passage } from "./lib/core/types.ts";
 import { fontFamily } from "./lib/fonts.ts";
 import { addHistory, type HistoryEntry, loadHistory } from "./lib/history.ts";
 import { playKey, preloadKeySounds } from "./lib/keysound.ts";
-import { currentModel, settings } from "./lib/settings.svelte.ts";
+import { currentModel, offlineOnly, settings } from "./lib/settings.svelte.ts";
 import Battle from "./lib/ui/Battle.svelte";
 import HistoryPanel from "./lib/ui/HistoryPanel.svelte";
 import Petals from "./lib/ui/Petals.svelte";
@@ -45,7 +45,7 @@ $effect(() => {
 });
 
 // ---- passages --------------------------------------------------------------
-const genKey = $derived(JSON.stringify(requestFor(settings)));
+const genKey = $derived(JSON.stringify([requestFor(settings), offlineOnly(settings)]));
 let loadedKey = "";
 
 async function loadPassage(): Promise<void> {
@@ -56,6 +56,13 @@ async function loadPassage(): Promise<void> {
   warning = "";
   loadedKey = genKey;
   try {
+    if (offlineOnly(settings)) {
+      const p = await fetchFallback(requestFor(settings));
+      if (ctrl.signal.aborted) return;
+      passage = p;
+      startRun();
+      return;
+    }
     const res = await fetchPassage(requestFor(settings), ctrl.signal);
     if (ctrl.signal.aborted) return;
     passage = res.passage;
@@ -103,7 +110,7 @@ function finish(stats: Stats, session: TypingSession): void {
 function closeSettings(): void {
   settingsOpen = false;
   if (genKey !== loadedKey && view !== "history") void loadPassage();
-  else prefetch(requestFor(settings));
+  else if (!offlineOnly(settings)) prefetch(requestFor(settings));
 }
 
 // ---- global keys -----------------------------------------------------------
@@ -277,7 +284,9 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
   </footer>
 </div>
 
-<SettingsPanel open={settingsOpen} onclose={closeSettings} backends={health?.backends ?? null} />
+<SettingsPanel open={settingsOpen} onclose={closeSettings} backends={health?.backends ?? null}
+  tatoeba={health ? health.tatoeba : null}
+/>
 
 {#snippet loader()}
   <div class="loader">

@@ -110,6 +110,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 - [x] Singer pitch follows pitch accent (`core/accent.ts`: phrase contour per target char)
 - [x] Optional UTAU voicebank for the singer (`data/voice/`, `core/oto.ts`, `server/voicebank.ts`): sample per kana, resampled to the accent pitch
+- [x] Generator option `tatoeba` (no AI): passages only from offline Tatoeba sentences; Model/Topic hidden, no prefetch
 - [x] Keyboard sounds (opt-in, volume): random CC0 keystroke per key, duller on misses (`keysound.ts`)
 - [x] Battle mode: singer → flying kana → marshmallow boss HP bar; formant-synth voice + volume (`Battle.svelte`, `singer.ts`, `core/voice.ts`)
 
@@ -121,6 +122,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Settings → Generator gains `tatoeba` (no AI): loads via `/api/fallback` only, never `/api/passage`/`/api/prefetch`, even when claude/codex are installed.
 - 2026-11-14 — Singer can use a user-installed UTAU voicebank (`data/voice/`, Shift-JIS oto.ini, pitch/expression suffixes stripped, plain set preferred); settings show which voice is active. Tested with 筆音クミ Act 4 (VCV, 75/75 kana covered).
 - 2026-11-13 — Singer sings the pitch accent: per-char contour from Kanjium downsteps (dictionary value; ichidan te/ta forms shift back a mora, godan keep it; ます/ません on ま/せ; ない on the mora before な; adjective かった/くて −1; special morae can't hold the nucleus), particles keep high after heiban / low after a drop, です etc. drop only if nothing dropped, unknown katakana words antepenultimate, catathesis per accented phrase reset at 。！？.
 - 2026-11-13 — Keyboard sounds setting (CC0 clicks via `<audio>`). Singer no longer outputs live Web Audio: notes are rendered offline to WAV blobs (`core/wav.ts`) and played by `<audio>`, because live Web Audio was silent on the user's machine.

@@ -3,7 +3,8 @@ import { currentModel, type Settings } from "./settings.svelte.ts";
 
 export function requestFor(s: Settings): GenerateRequest {
   return {
-    backend: s.backend,
+    // the Tatoeba-only mode never sends a generate request; the field just needs a value
+    backend: s.backend === "tatoeba" ? "claude" : s.backend,
     model: currentModel(s),
     level: s.level,
     length: s.length,

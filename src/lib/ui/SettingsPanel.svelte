@@ -14,8 +14,10 @@ interface Props {
   open: boolean;
   onclose: () => void;
   backends: { claude: boolean; codex: boolean } | null;
+  /** Whether offline sentences exist (needs `data:setup`); null = unknown. */
+  tatoeba: boolean | null;
 }
-let { open, onclose, backends }: Props = $props();
+let { open, onclose, backends, tatoeba }: Props = $props();
 
 const LEVEL_LABEL: Record<string, string> = {
   N5: "N5",
@@ -53,8 +55,13 @@ $effect(() => {
             {#if backends && !backends[b]}<em>missing</em>{/if}
           </button>
         {/each}
+        <button class="tbtn" class:on={settings.backend === "tatoeba"} onclick={() => (settings.backend = "tatoeba")}>
+          tatoeba
+          <em>{tatoeba === false ? "run data:setup" : "no AI"}</em>
+        </button>
       </div>
     </div>
+    {#if settings.backend !== "tatoeba"}
     <label class="field">
       <span class="label">Model</span>
       {#if settings.backend === "claude"}
@@ -63,6 +70,7 @@ $effect(() => {
         <input bind:value={settings.codexModel} placeholder="default" />
       {/if}
     </label>
+    {/if}
     <div class="field">
       <span class="label">Vocabulary</span>
       <div class="seg">
@@ -90,10 +98,12 @@ $effect(() => {
         <input type="number" min="20" max="1000" step="10" bind:value={settings.length} />
       {/if}
     </div>
-    <label class="field">
-      <span class="label">Topic <small>optional</small></span>
-      <input bind:value={settings.topic} placeholder="e.g. 料理, 旅行, space, cats…" />
-    </label>
+    {#if settings.backend !== "tatoeba"}
+      <label class="field">
+        <span class="label">Topic <small>optional</small></span>
+        <input bind:value={settings.topic} placeholder="e.g. 料理, 旅行, space, cats…" />
+      </label>
+    {/if}
   </section>
 
   <section>

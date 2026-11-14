@@ -7,8 +7,11 @@ export type HintMode = "full" | "romaji" | "kana" | "off";
 export type DisplayMode = "paragraph" | "ticker";
 export type ThemeMode = "system" | "light" | "dark";
 
+/** Where passages come from: an LLM CLI, or Tatoeba sentences only (no AI). */
+export type Generator = Backend | "tatoeba";
+
 export interface Settings {
-  backend: Backend;
+  backend: Generator;
   claudeModel: string;
   codexModel: string;
   level: Level;
@@ -66,7 +69,7 @@ function sanitize(raw: unknown): Settings {
   };
   const str = (v: unknown, d: string) => (typeof v === "string" ? v : d);
   return {
-    backend: oneOf(r.backend, ["claude", "codex"] as const, DEFAULTS.backend),
+    backend: oneOf(r.backend, ["claude", "codex", "tatoeba"] as const, DEFAULTS.backend),
     claudeModel: str(r.claudeModel, DEFAULTS.claudeModel),
     codexModel: str(r.codexModel, DEFAULTS.codexModel),
     level: oneOf(r.level, LEVELS, DEFAULTS.level),
@@ -106,6 +109,11 @@ export function saveSettings(): void {
   } catch {
     // Storage unavailable (private mode etc.) — settings just won't persist.
   }
+}
+
+/** True when passages should come from Tatoeba only, never an LLM. */
+export function offlineOnly(s: Settings): boolean {
+  return s.backend === "tatoeba";
 }
 
 export function currentModel(s: Settings): string {
