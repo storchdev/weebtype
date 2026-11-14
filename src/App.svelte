@@ -17,6 +17,8 @@ type View = "typing" | "results" | "history";
 let view: View = $state("typing");
 let passage: Passage | null = $state(null);
 let runId = $state(0);
+/** Bumped on each click of the logo seal to replay its stamp ink ring. */
+let stamps = $state(0);
 let loading = $state(false);
 let warning = $state("");
 let health: HealthResponse | null = $state(null);
@@ -148,8 +150,18 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
 
 <div class="shell">
   <header class="top">
-    <button class="brand" onclick={() => (view = passage ? "typing" : view)} aria-label="weebtype home">
-      <span class="seal">打</span>
+    <button
+      class="brand"
+      onclick={() => {
+        stamps++;
+        view = passage ? "typing" : view;
+      }}
+      aria-label="weebtype home"
+    >
+      <span class="seal-wrap">
+        {#key stamps}{#if stamps}<span class="ink"></span>{/if}{/key}
+        <span class="seal">打</span>
+      </span>
       <span class="word">weebtype<small>和文タイピング</small></span>
     </button>
     <nav>
@@ -323,6 +335,42 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     font-size: 21px;
     transform: rotate(-4deg);
     box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--paper-raised) 25%, transparent);
+    /* springy settle back after the press */
+    transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .seal-wrap {
+    position: relative;
+    display: grid;
+  }
+  /* hover: the seal straightens and lifts off the paper */
+  .brand:hover .seal,
+  .brand:focus-visible .seal {
+    transform: rotate(0deg) translate3d(0, -2px, 0) scale(1.06);
+  }
+  /* press: stamp it down */
+  .brand:active .seal {
+    transform: rotate(-1deg) scale(0.86);
+    transition-duration: 0.08s;
+    transition-timing-function: ease-out;
+  }
+  /* ink ring left on the paper by the stamp, spreading and fading */
+  .ink {
+    position: absolute;
+    inset: 0;
+    border-radius: 7px;
+    border: 1.5px solid var(--accent);
+    pointer-events: none;
+    animation: ink 0.7s var(--ease-out) forwards;
+  }
+  @keyframes ink {
+    from {
+      opacity: 0.7;
+      transform: rotate(-4deg) scale(0.9);
+    }
+    to {
+      opacity: 0;
+      transform: rotate(-4deg) scale(1.75);
+    }
   }
   .word {
     display: flex;

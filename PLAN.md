@@ -109,6 +109,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Logo seal (打) animates: hover straightens/lifts it, press stamps it down with a springy release, each click leaves an expanding ink ring (transform/opacity only).
+
 - 2026-11-14 — Dropped pill/oval outlined buttons everywhere (nav, settings segments, history tools, results) for shared `.tbtn` underline text buttons + a squared `.pbtn` primary; radii tightened to 4px.
 
 - 2026-11-14 — <kbd>Shift+Tab</kbd> = new passage (Tab = retry same, Enter on results = next). History: export to JSON (`{format: "weebtype-history", version: 1, entries}`), import merges (dedupe on timestamp+speed, invalid rows skipped, bare arrays accepted), two-click inline clear; cap raised to 2000 entries.
