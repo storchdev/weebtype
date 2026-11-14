@@ -135,3 +135,14 @@ describe("accentMelody", () => {
     expect(noteName(-10)).toBe("B3");
   });
 });
+
+test("a long heiban plateau drifts down instead of droning on one note", () => {
+  // 友達 (heiban) + と: low, then five high morae
+  const m = accentMelody([tok("ともだち", entry("友達", "ともだち", 0), "友達"), tok("と"), tok("。")]);
+  expect(m[1]).toBeGreaterThan(m[0] as number); // still rises after the first mora
+  expect(m[4]).toBeLessThan(m[1] as number); // and sinks after a few high morae
+  for (let i = 2; i < 5; i++) expect(m[i]).toBeLessThanOrEqual(m[i - 1] as number);
+  // short plateaus are untouched: さかなを stays level
+  const s = accentMelody([tok("さかな", entry("魚", "さかな", 0), "魚"), tok("を")]);
+  expect(new Set(s.slice(1)).size).toBe(1);
+});

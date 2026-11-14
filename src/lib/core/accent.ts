@@ -280,6 +280,11 @@ export function topDegree(span: number): number {
 }
 
 /** Degrees below the phrase top for each accent level. */
+/** A high plateau sinks one scale step per this many high morae… */
+const DRIFT_EVERY = 3;
+/** …by at most this many steps. */
+const MAX_DRIFT = 2;
+
 function stepFor(level: number): number {
   if (level >= HIGH) return 0;
   if (level === INITIAL_LOW) return -1;
@@ -305,8 +310,12 @@ export function accentMelody(tokens: Token[], range: VoiceRange = DEFAULT_RANGE)
   let top = topStart;
   let lastSentence = 0;
   let lastPhrase = -1;
+  // morae sung high so far in this phrase: a long plateau (heiban + particles) drifts
+  // down a step every DRIFT_EVERY of them, like speech declination, instead of droning
+  let highs = 0;
   return marks.map((m) => {
     if (m.phrase !== lastPhrase) {
+      highs = 0;
       if (m.sentence !== lastSentence || lastPhrase < 0) top = topStart;
       else {
         // a small hash so the walk is varied but repeatable
@@ -320,7 +329,10 @@ export function accentMelody(tokens: Token[], range: VoiceRange = DEFAULT_RANGE)
       lastPhrase = m.phrase;
       lastSentence = m.sentence;
     }
-    return low + degreeSemis(Math.max(0, top + stepFor(m.level)));
+    const drift = Math.min(MAX_DRIFT, Math.floor(highs / DRIFT_EVERY));
+    if (m.level >= HIGH) highs++;
+    // drops are measured from where the plateau has drifted to, so they stay audible
+    return low + degreeSemis(Math.max(0, top - drift + stepFor(m.level)));
   });
 }
 
