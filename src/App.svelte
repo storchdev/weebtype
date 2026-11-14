@@ -41,8 +41,9 @@ const narrow = $derived(isNarrow(winW));
 const branchW = $derived(branchWidth(winW, winH, battleOn));
 // results/history only need to clear the header: the branch hangs off to the side of them
 const topPad = $derived(view === "typing" ? mainTop(winH, branchW) : Math.max(16, winH * 0.04));
-// on the results screen the pair only celebrates: a smaller band leaves room for the stats
-const stageH = $derived(battleOn ? stageHeight(winW, winH) * (view === "typing" ? 1 : 0.62) : 0);
+// same size on every screen (the user didn't want them shrinking on results); results
+// that don't fit scroll above the band
+const stageH = $derived(battleOn ? stageHeight(winW, winH) : 0);
 $effect(() => {
   const root = document.documentElement.style;
   root.setProperty("--branch-w", `${branchW}px`);

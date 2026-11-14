@@ -123,7 +123,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - [x] Singer: long vowels (じゅう, きょう, とおい, ー) glide on as one held syllable instead of re-attacking a new `u`
 - [x] Singer: voice range setting (lowest/highest note); default a bit lower than F4–G5
 - [x] Battle: singer and boss larger; kana fly a low, nearly straight path so they don't cross the text
-- [x] Battle layout: a stage band along the bottom (`--stage-h`, `src/lib/layout.ts`); the text/dictionary reserve it, the branch shrinks, results get a smaller band and scroll above it
+- [x] Battle layout: a stage band along the bottom (`--stage-h`, `src/lib/layout.ts`); the text/dictionary reserve it, the branch shrinks; results keep the same band (user: no shrinking) and scroll above it
 - [x] Mobile: narrow layout (≤ 640 px: no branch, stacked dictionary, font capped by width, footer buttons) and a hidden input for the on-screen keyboard
 - [x] Passage trimming keeps a closing 」 after 。 and never cuts inside a quote
 - [ ] Later: particle は sung as "wa" (and へ as "e")
