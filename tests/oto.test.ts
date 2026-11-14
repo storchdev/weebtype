@@ -80,3 +80,17 @@ describe("pitch sets", () => {
     expect(idx.find(ka, 700, 294)?.file).toBe("D5/ka.wav");
   });
 });
+
+test("a glide picks the VCV transition alias", () => {
+  const idx = new OtoIndex(
+    parseOto(
+      ["i.wav=- い,1,1,1,1,1", "ai.wav=a い,1,1,1,1,1", "an.wav=a ん,1,1,1,1,1", "n.wav=- ん,1,1,1,1,1"].join(
+        "\n",
+      ),
+    ),
+  );
+  const [, i, , n] = syllables("たいさん");
+  expect(idx.find(i as Syllable)?.file).toBe("ai.wav");
+  expect(idx.find(n as Syllable)?.file).toBe("an.wav");
+  expect(idx.find(syllables("い")[0] as Syllable)?.file).toBe("i.wav");
+});

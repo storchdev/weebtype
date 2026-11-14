@@ -69,3 +69,11 @@ test("long vowels hold the previous syllable instead of a new one", () => {
   expect(syllables("い", "a")[0]?.hold).toBeFalsy();
   expect(syllables("ー", "a")[0]?.hold).toBe(true);
 });
+
+test("diphthongs and ん glide from the vowel before them", () => {
+  const s = syllables("たいさんあお");
+  expect(s.map((x) => x.from ?? "-")).toEqual(["-", "a", "-", "a", "-", "a"]);
+  // after ん nothing glides; long vowels still hold
+  expect(syllables("んい")[1]?.from).toBeUndefined();
+  expect(syllables("せい")[1]?.hold).toBe(true);
+});

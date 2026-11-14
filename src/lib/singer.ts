@@ -253,7 +253,19 @@ function mainHz(bank: LoadedBank): Promise<number | null> {
 }
 
 /** Cuts a note from a voicebank sample and resamples it to `targetHz`. */
-async function renderSample(e: OtoEntry, s: Sample, targetHz: number, hold = false): Promise<Float32Array> {
+/**
+ * How a note enters: "attack" (consonant + vowel), "hold" (starts inside the vowel, for
+ * ー/long vowels), "glide" (a VCV transition "a い", entered softly through its blend).
+ */
+type Entry = "attack" | "hold" | "glide";
+
+async function renderSample(
+  e: OtoEntry,
+  s: Sample,
+  targetHz: number,
+  how: Entry = "attack",
+): Promise<Float32Array> {
+  const hold = how === "hold";
   const f0 = sampleF0(s, e) ?? targetHz;
   const rate = Math.max(0.5, Math.min(2, targetHz / f0));
   const total = s.data.length / s.rate;
@@ -262,7 +274,8 @@ async function renderSample(e: OtoEntry, s: Sample, targetHz: number, hold = fal
   const fullLead = Math.max(e.consonant, e.preutter) / 1000;
   // start at most MAX_LEAD before the vowel: anything earlier is breath/silence
   // a held vowel starts inside the vowel (no consonant, no attack)
-  const lead = hold ? 0 : Math.min(fullLead, MAX_LEAD);
+  // a glide keeps a short stretch of the previous vowel so the transition is heard
+  const lead = hold ? 0 : how === "glide" ? Math.min(fullLead, 0.07) : Math.min(fullLead, MAX_LEAD);
   const start = off + fullLead - lead + (hold ? 0.03 : 0);
   // consonant as recorded, then about one note of vowel (both in source time)
   const srcDur = Math.max(0.05, Math.min(end - start, lead + (BANK_NOTE_LEN + 0.08) * rate));
@@ -275,7 +288,7 @@ async function renderSample(e: OtoEntry, s: Sample, targetHz: number, hold = fal
   src.playbackRate.value = rate;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, 0);
-  g.gain.linearRampToValueAtTime(1, hold ? 0.06 : 0.006);
+  g.gain.linearRampToValueAtTime(1, hold ? 0.06 : how === "glide" ? 0.045 : 0.006);
   g.gain.setValueAtTime(1, Math.max(0.01, outDur - 0.12));
   g.gain.linearRampToValueAtTime(0, outDur);
   src.connect(g).connect(ctx.destination);
@@ -285,6 +298,22 @@ async function renderSample(e: OtoEntry, s: Sample, targetHz: number, hold = fal
   for (const v of data) peak = Math.max(peak, Math.abs(v));
   if (peak > 0) for (let i = 0; i < data.length; i++) data[i] = ((data[i] as number) * 0.8) / peak;
   return data;
+}
+
+/** Short volume ramp then pause (element volume, no live Web Audio). */
+function fadeOut(a: HTMLAudioElement, secs: number): void {
+  const v0 = a.volume;
+  const t0 = performance.now();
+  const step = () => {
+    const k = (performance.now() - t0) / (secs * 1000);
+    if (k >= 1 || a.paused) {
+      a.pause();
+      return;
+    }
+    a.volume = v0 * (1 - k);
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 export class Singer {
@@ -319,9 +348,11 @@ export class Singer {
       if (s.vowel === null) {
         // っ: a held breath — stop the note before it
         setTimeout(() => this.ringing[this.ringing.length - 1]?.pause(), delay);
+        this.lastVowel = null;
         return;
       }
-      if (s.vowel !== "n") this.lastVowel = s.vowel;
+      // ん and っ end the vowel: what follows them can't glide or hold from it
+      this.lastVowel = s.vowel === "n" ? null : s.vowel;
       // ー holds the same pitch; everything else takes the next melody note
       const note = notes?.[s.at];
       const semis =
@@ -359,7 +390,10 @@ export class Singer {
     return voicebank().then(async (bank) => {
       const hz = hzOf(semis);
       const entry = bank ? bank.index.find(s, hz, await mainHz(bank)) : null;
-      const h = s.hold ? "|hold" : "";
+      const glide =
+        !s.hold && !!s.from && !!entry && entry.alias.includes(" ") && !entry.alias.startsWith("-");
+      const how: Entry = s.hold ? "hold" : glide ? "glide" : "attack";
+      const h = how === "attack" ? "" : `|${how}`;
       const key = entry
         ? `${entry.file}|${entry.alias}|${semis}${h}`
         : `${s.onset}|${s.consonant}|${s.vowel}|${semis}${h}`;
@@ -369,7 +403,7 @@ export class Singer {
           let data: Float32Array | null = null;
           if (entry) {
             const sample = await loadSample(entry.file);
-            if (sample) data = await renderSample(entry, sample, hz, s.hold);
+            if (sample) data = await renderSample(entry, sample, hz, how);
           }
           data ??= await renderSyllable(s, semis);
           return URL.createObjectURL(encodeWav(data, SAMPLE_RATE));
@@ -388,6 +422,9 @@ export class Singer {
         () => {
           const a = new Audio(url);
           a.volume = Math.min(1, this.volume ** 1.5 * 0.85);
+          // a glide/hold carries the previous vowel itself: hand over instead of doubling it
+          const prev = this.ringing[this.ringing.length - 1];
+          if (prev && (s.hold || s.from)) fadeOut(prev, 0.05);
           const done = () => {
             const i = this.ringing.indexOf(a);
             if (i >= 0) this.ringing.splice(i, 1);

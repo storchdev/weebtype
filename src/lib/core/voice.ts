@@ -31,6 +31,12 @@ export interface Syllable {
   at: number;
   /** Continues the previous vowel (ー, or the second mora of じゅう/せい/かあ): no new attack. */
   hold?: boolean;
+  /**
+   * Vowel this mora glides from (たい → "a" for い, さん → "a" for ん): sung from a VCV
+   * transition sample ("a い") with a soft entry, so diphthongs and ん fuse with the
+   * vowel before them instead of being re-attacked.
+   */
+  from?: Vowel;
 }
 
 /** Vowel kana that lengthen the vowel before them: う after u/o, い after e/i, or the same vowel. */
@@ -80,10 +86,19 @@ export function syllables(text: string, prev: Vowel | null = null): Syllable[] {
     if (isPunct(u.kana)) continue;
     if (u.kind === "sokuon") {
       out.push({ kana: u.kana, onset: "none", consonant: "", vowel: null, at: here });
+      last = null;
       continue;
     }
     if (u.kind === "n") {
-      out.push({ kana: u.kana, onset: "nasal", consonant: "n", vowel: "n", at: here });
+      out.push({
+        kana: u.kana,
+        onset: "nasal",
+        consonant: "n",
+        vowel: "n",
+        at: here,
+        ...(last ? { from: last } : {}),
+      });
+      last = null;
       continue;
     }
     const r = u.cands[0] ?? "";
@@ -96,7 +111,9 @@ export function syllables(text: string, prev: Vowel | null = null): Syllable[] {
       out.push({ kana: u.kana, onset: "none", consonant: "", vowel: last, at: here, hold: true });
       continue;
     }
-    out.push({ kana: u.kana, onset: onsetOf(consonant), consonant, vowel: v as Vowel, at: here });
+    // a bare vowel right after another (たい, こえ, あお) glides from it
+    const from = consonant === "" && last ? { from: last } : {};
+    out.push({ kana: u.kana, onset: onsetOf(consonant), consonant, vowel: v as Vowel, at: here, ...from });
     last = v as Vowel;
   }
   return out;

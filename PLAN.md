@@ -136,6 +136,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Singer fuses diphthongs (たい, こえ) and ん with the vowel before them via VCV transition samples; long-vowel holds use them too (no breathy "- う" re-attack).
+
 - 2026-11-14 — Battle stage band (bigger characters, flat kana flights, no overlap with text/results), shared `layout.ts` geometry, phone layout + on-screen keyboard input.
 - 2026-11-14 — Fix: passages ending in 「…。」 lost the final 」 (trimToLength cut right after 。); it now cuts only outside quotes. Singer holds long vowels (じゅう, せい, ー) as one glide.
 - 2026-11-14 — Singer fixes after "not lyrical, cut off, low and breathy": `accentMelody` (F major pentatonic, absolute notes, accent shape kept), voicebank pitch sets (Kumi: D4 core + A3/A4/D5; Strong/Whisper excluded) chosen per note, rendered notes within ~0.4 st of target, notes ring ~0.4 s and overlap (≤6), consonant lead capped at 110 ms.

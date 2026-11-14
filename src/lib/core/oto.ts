@@ -152,7 +152,10 @@ export class OtoIndex {
     let best: OtoEntry | null = null;
     let bestDist = Number.POSITIVE_INFINITY;
     for (const set of this.sets.values()) {
-      const e = OtoIndex.lookup(set, kana, romaji);
+      // glides and holds prefer the recorded transition from the previous vowel ("a い",
+      // "u う"): it starts voiced, where "- う" starts with a breath
+      const vcv = s.hold ? `${s.vowel} ${kana}` : s.from ? `${s.from} ${kana}` : null;
+      const e = (vcv && set.byAlias.get(vcv)) || OtoIndex.lookup(set, kana, romaji);
       if (!e) continue;
       const hz = set.hz ?? mainHz ?? null;
       // unknown pitch: usable, but any set with a known pitch near the target wins
