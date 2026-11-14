@@ -49,13 +49,13 @@ const LEVEL_DESC: Record<Level, string> = {
     "native level: literary or editorial prose with rich vocabulary, uncommon kanji compounds and idioms",
 };
 
-export function buildPrompt(level: Level, length: number, topic: string, seed: number): string {
+/** `steer` are the subject/form/variety lines from `Variety.promptLines`. */
+export function buildPrompt(level: Level, length: number, steer: string[]): string {
   return [
     "You write practice passages for a Japanese typing test.",
     `Write natural, interesting Japanese prose of roughly ${length} kana when read aloud (±20%), at ${LEVEL_DESC[level]}.`,
-    topic.trim()
-      ? `Topic: ${topic.trim()}.`
-      : `Pick a fresh everyday or cultural topic yourself (variety seed ${seed}); avoid clichés like weather small talk.`,
+    ...steer,
+    "Avoid stock openings like 今日は, 私は…です or talk about the weather unless the subject is about it.",
     "Use complete sentences ending in 。, ！ or ？. Use 、 normally. You may use 「」 for quotes.",
     "Do NOT use: Latin letters, Arabic digits (write numbers in kanji), spaces, emoji, or symbols other than 、。！？「」ー.",
     "",

@@ -197,10 +197,9 @@ function fmtTime(s: number): string {
     margin: 0 0 8px;
   }
   dt {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
   dd {
     margin: 0;
@@ -268,10 +267,9 @@ function fmtTime(s: number): string {
     margin: 0 0 10px;
     font-family: var(--ui-font);
     font-weight: 400;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
   .label span {
     margin-left: 6px;

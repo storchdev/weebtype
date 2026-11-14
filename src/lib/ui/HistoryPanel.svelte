@@ -205,10 +205,9 @@ function when(t: number): string {
     flex-wrap: wrap;
   }
   dt {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.02em;
   }
   dd {
     margin: 0;

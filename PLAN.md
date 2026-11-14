@@ -29,6 +29,7 @@ bar / IME), and always shows an unobtrusive hint for the current word.
 | LLM latency       | Server keeps a **prefetch queue** (default 2 passages per settings key) so "next test" is instant. Offline/failed LLM → fallback passages built from Tatoeba sentences in `examples.json` (already furigana-segmented)                                                                                                     | `claude -p` takes several seconds                                                      |
 | LLM backends      | `claude -p --output-format json --json-schema … --tools ""` and `codex exec --output-schema <file> -o <file> --ephemeral --skip-git-repo-check -s read-only`. Backend + model are user settings                                                                                                                            | Both CLIs support structured output                                                    |
 | Difficulty        | Vocabulary level: JLPT **N5, N4, N3, N2, N1**, plus **Native** (literary/news). Optional free-text topic                                                                                                                                                                                                                   |                                                                                        |
+| Passage variety   | Server picks subject × form × narrator × tone from shuffle bags (`server/variety.ts`) and lists the last 8 subjects/openings in the prompt; no numeric seed | A seed number in the prompt is ignored by the model, so passages converged on the same few topics |
 | Length            | Approximate target in kana-to-type: presets 50 / 100 / 200 / 400 + custom                                                                                                                                                                                                                                                  | User: "approximately"                                                                  |
 | Display modes     | **Paragraph** (static, wrapped) or **Ticker** (single line, caret fixed ~40% across, text slides left)                                                                                                                                                                                                                     | User choice                                                                            |
 | Themes            | Light + dark (+ "system"). All colours are CSS custom properties; decorations use them too                                                                                                                                                                                                                                 |                                                                                        |
@@ -77,6 +78,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - [x] Prompt + JSON schema; `claude -p` and `codex exec` backends with timeout + error reporting
 - [x] Server-side normalisation (katakana/hiragana readings, punctuation tokens, length trimming)
 - [x] Prefetch queue keyed by (backend, model, level, length, topic)
+- [x] Real passage variety: shuffle-bag directions + recent-passage avoidance (no fake seed)
 - [x] Settings UI: backend, model, level, length, topic
 
 ### M3 — Dictionary + hints
@@ -108,6 +110,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - Furigana-over-kanji toggle on the target text for beginners?
 
 ## Log
+
+- 2026-11-14 — Fixed near-identical passages: replaced the ignored `variety seed N` with server-picked directions (130+ subjects, 12 forms, narrators, tones; shuffle bags) and a recent-subjects/openings avoid list; banned stock openings. Live check: 4 N4 passages (2 parallel) all distinct. Results/history labels are lowercase now.
 
 - 2026-11-14 — Logo seal (打) animates: hover straightens/lifts it, press stamps it down with a springy release, each click leaves an expanding ink ring (transform/opacity only).
 

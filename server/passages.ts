@@ -7,6 +7,7 @@ import type { Dictionary } from "./dictionary.ts";
 import { buildPrompt, generate } from "./llm.ts";
 import { normalizeTokens, trimToLength } from "./normalize.ts";
 import { BUILTIN, type Tatoeba } from "./tatoeba.ts";
+import { Variety } from "./variety.ts";
 
 interface Pending {
   promise: Promise<Passage>;
@@ -24,6 +25,7 @@ export class PassageService {
   private readonly pending = new Map<string, Pending[]>();
   dict: Dictionary | null = null;
   tatoeba: Tatoeba | null = null;
+  readonly variety = new Variety();
 
   annotate(tokens: Token[]): Token[] {
     const dict = this.dict;
@@ -65,7 +67,9 @@ export class PassageService {
   private async generateOne(req: GenerateRequest): Promise<Passage> {
     let lastErr = "";
     for (let attempt = 0; attempt < 2; attempt++) {
-      const prompt = buildPrompt(req.level, req.length, req.topic, Math.floor(Math.random() * 1e6));
+      // A fresh direction per attempt; parallel prefetches each draw a different one.
+      const direction = this.variety.next();
+      const prompt = buildPrompt(req.level, req.length, this.variety.promptLines(direction, req.topic));
       const raw = await generate(req.backend, req.model, prompt);
       const norm = normalizeTokens(raw.tokens ?? [], this.dict);
       const allowed = Math.max(2, Math.floor(norm.tokens.length * 0.08));
@@ -80,6 +84,7 @@ export class PassageService {
       }
       if (norm.problems.length)
         console.warn(`[passages] accepted with problems: ${norm.problems.join("; ")}`);
+      this.variety.record(direction, norm.tokens.map((t) => t.groups.map((g) => g.t).join("")).join(""));
       return {
         id: crypto.randomUUID(),
         source: req.backend,

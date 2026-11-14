@@ -56,7 +56,7 @@ the script and look at them before committing.
 ## Layout
 
 ```
-server/            Bun.serve API (main.ts), LLM backends (llm.ts), passages + prefetch,
+server/            Bun.serve API (main.ts), LLM backends (llm.ts), passages + prefetch, variety,
                    normalisation, dictionary + vendored deinflect, Tatoeba fallback
 src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
 src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
@@ -80,6 +80,8 @@ data/              Jitendex JSON (gitignored, imported)
   in components or SVGs (use `currentColor` / `var(--…)`).
 - `server/vendor/deinflect.js` is vendored from Yomitan (GPLv3) as plain JS with a hand-written
   `deinflect.d.ts` (only the API we use). Keep its license header; don't type-check the JS.
+- Passage variety comes from `server/variety.ts` (directions + recent-passage list in the prompt).
+  Don't reintroduce a numeric "seed" in prompts — models ignore it.
 - LLM CLIs run from an empty temp dir (so they don't read project instructions) with
   `--tools "" --setting-sources "" --no-session-persistence` (claude) / `-s read-only --ephemeral` (codex).
 - Don't `pkill -f "bun server/main.ts"` from an agent shell — the pattern matches the shell itself.
