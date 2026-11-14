@@ -38,6 +38,7 @@ bar / IME), and always shows an unobtrusive hint for the current word.
 | Animations        | Must be smooth: animate **only `transform`/`opacity`**, caret glides via `transform` with short easing, ticker uses `translate3d`, no layout thrash per keystroke (measure once per group change, cache rects), `will-change` only on moving elements, 60 fps target, respects `prefers-reduced-motion`                    | User: "make sure the animations are smooth"                                            |
 | Stats             | Kana/min (KPM, primary), keystrokes/min, accuracy (correct keys / all keys), misses per word, time. History in `localStorage`                                                                                                                                                                                              | KPM is the usual JP typing metric                                                      |
 | Persistence       | Settings + history in `localStorage`                                                                                                                                                                                                                                                                                       | Single-user local app                                                                  |
+| Battle mode | Opt-in (`battle`, off by default): an **original** chibi singer (plum-pink buns, kimono, headset — not an existing character) sings each typed kana, which flies spinning into a marshmallow boss whose HP = passage kana (0 at the end, 撃破 stamp). Voice is a **Web Audio formant synth** (vowel formants + consonant noise, pentatonic random-walk melody with portamento), volume setting; no samples | Fun to watch while typing. Real vocaloid voicebanks/character art can't be shipped; a synth keeps it self-contained |
 | Tests             | `bun test` for pure logic (romaji engine, passage validation, deinflect lookup, stats)                                                                                                                                                                                                                                     |                                                                                        |
 
 ## Data shapes
@@ -103,6 +104,10 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - [x] Keyboard shortcuts (Tab = restart, Esc = settings, Enter on results = next)
 - [x] README with setup, licensing/attribution
 
+### M6 — Extras
+
+- [x] Battle mode: singer → flying kana → marshmallow boss HP bar; formant-synth voice + volume (`Battle.svelte`, `singer.ts`, `core/voice.ts`)
+
 ## Open questions / later
 
 - JIS kana-layout direct input (not planned for v1)
@@ -111,6 +116,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-13 — Battle mode (opt-in, 遊び section of settings): kana fly from an original singer to a marshmallow boss (HP = passage, expressions: normal / worried ≤30% / ouch on hit / KO with crown knocked off + 撃破 stamp, stays KO'd on results, bounces back on the next run). Voice is synthesized per kana (formants per vowel, noise per consonant class, ー holds the note, っ cuts it, punctuation resolves the melody). Animations are WAAPI on transform/opacity; positions measured on mount/resize/run only.
 - 2026-11-14 — Setup no longer needs a local 10ff-yomitan copy: `bun run data:setup` downloads Jitendex (Yomitan zip) and Kanjium `accents.txt` and builds `dictionary.json`/`examples.json`/`pitch.json` itself (verified identical to the old files, modulo newer Jitendex). `bun start`/`bun dev` run it automatically when `data/` is incomplete and carry on without hints if offline. `data:import` removed.
 - 2026-11-14 — Fixed: switching hint mode reloaded the passage (the request carried an unused `dict` flag, so it changed the generation key). Passages always carry dictionary entries; hint is display-only. Loader for a replacement passage now overlays the dimmed text instead of sitting below the panel space (was pushed off-screen).
 

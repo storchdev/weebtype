@@ -48,7 +48,7 @@ current word. Full scope, decisions and progress: **[PLAN.md](PLAN.md)**. Read i
 | `bun test`                           | Unit tests (`tests/`)                                                    |
 | `bun run lint` / `bun run format`    | Biome check / format                                                     |
 | `bun run data:setup [--force]`       | Download Jitendex + Kanjium pitch, build `data/*.json` (auto-run by `bun start`/`bun dev` when `data/` is incomplete) |
-| `bun scripts/screenshot.ts out.png …` | Headless Chromium screenshot of a running server (see flags in the file: `--offline`, `--builtin`, `--theme`, `--display`, `--font`, `--type "keys"`, `--finish`, `--settings`) |
+| `bun scripts/screenshot.ts out.png …` | Headless Chromium screenshot of a running server (see flags in the file: `--offline`, `--builtin`, `--theme`, `--display`, `--font`, `--type "keys"` + `--wait ms`, `--finish`, `--settings`, `--battle`) |
 
 Visual changes: run the server (`bun run serve` after `vite build`), take screenshots with
 the script and look at them before committing.
@@ -60,8 +60,8 @@ server/            Bun.serve API (main.ts), LLM backends (llm.ts), passages + pr
                    normalisation, dictionary + vendored deinflect, Tatoeba fallback
 src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
 src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
-                   PlumBranch, Petals)
-src/lib/*.ts       settings (runes, localStorage), api client, history, fonts
+                   PlumBranch, Petals, Battle)
+src/lib/*.ts       settings (runes, localStorage), api client, history, fonts, singer (Web Audio voice)
 src/app.css        theme tokens (light/dark) + base styles
 scripts/           dev runner, data setup (download + pure converters in build-data.ts), screenshot
 tests/             bun tests for the core modules
@@ -95,5 +95,9 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
 - Buttons use the shared classes in `app.css`: `.tbtn` (text button, accent hairline underline
   on hover, solid when `.on`) and `.pbtn` (the one solid primary action). No pill/oval outlines;
   radii ≤ 4px. Don't restyle buttons per component.
+- Battle mode: `TypingArea` reports newly completed kana via `onkana`; `Battle.svelte` creates
+  projectiles imperatively (WAAPI, transform/opacity) and only measures screen positions on
+  mount/resize/new run — keep it that way. The voice is synthesized (`singer.ts` + pure
+  `core/voice.ts`); don't add character art or voice samples from existing franchises.
 - Typing text renders as one `.cell` per kana/punct char or kanji group, wrapped in nowrap
   `.word` spans (`buildWords`) so lines break only between words.

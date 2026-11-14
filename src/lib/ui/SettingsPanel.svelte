@@ -131,6 +131,20 @@ $effect(() => {
   </section>
 
   <section>
+    <h3>遊び <span>extras</span></h3>
+    <label class="field check">
+      <input type="checkbox" bind:checked={settings.battle} />
+      <span>Singer vs. marshmallow <small>each kana is sung and flung at a boss whose HP is the passage</small></span>
+    </label>
+    {#if settings.battle}
+      <label class="field">
+        <span class="label">Voice <small>{settings.battleVolume ? `${settings.battleVolume}%` : "muted"}</small></span>
+        <input type="range" min="0" max="100" step="5" bind:value={settings.battleVolume} />
+      </label>
+    {/if}
+  </section>
+
+  <section>
     <h3>書体 <span>font</span></h3>
     <div class="fonts">
       {#each FONTS as f}
@@ -231,6 +245,11 @@ $effect(() => {
   .label small {
     color: var(--muted);
     margin-left: 4px;
+  }
+  .check small {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted);
   }
   input:not([type]),
   input[type="number"] {

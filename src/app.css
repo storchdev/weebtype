@@ -20,6 +20,19 @@
   --branch-light: #7a6152;
   --shadow: 0 6px 24px rgb(60 40 20 / 0.1), 0 1px 3px rgb(60 40 20 / 0.08);
   --grain-opacity: 0.35;
+  /* battle mode (singer + marshmallow) */
+  --hair: #d7708e;
+  --hair-shade: #b85a77;
+  --robe: #46557a;
+  --skin: #fbe6d6;
+  --eye: #3a2b40;
+  --cheek: #f3a1b2;
+  --mouth: #b4434f;
+  --mallow: #fffbf5;
+  --mallow-top: #ffffff;
+  --mallow-shade: #efe3d4;
+  --mallow-line: #cdbba7;
+  --sweat: #8cc3e0;
 
   --ui-font: "Noto Sans JP", system-ui, sans-serif;
   --title-font: "Shippori Mincho", "Noto Serif JP", serif;
@@ -47,6 +60,18 @@
   --branch-light: #9b8270;
   --shadow: 0 8px 28px rgb(0 0 0 / 0.45), 0 1px 3px rgb(0 0 0 / 0.4);
   --grain-opacity: 0.18;
+  --hair: #d27a96;
+  --hair-shade: #a65a74;
+  --robe: #6878a8;
+  --skin: #f2d9c8;
+  --eye: #2e2233;
+  --cheek: #e58ea2;
+  --mouth: #a33e4b;
+  --mallow: #ece4dc;
+  --mallow-top: #f8f3ee;
+  --mallow-shade: #c9bcb0;
+  --mallow-line: #8f8178;
+  --sweat: #7fb3d1;
 }
 
 *,

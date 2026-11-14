@@ -3,8 +3,10 @@ import { onMount } from "svelte";
 import { fetchFallback, fetchHealth, fetchPassage, prefetch, requestFor } from "./lib/api.ts";
 import type { Stats, TypingSession } from "./lib/core/session.ts";
 import type { HealthResponse, Passage } from "./lib/core/types.ts";
+import { fontFamily } from "./lib/fonts.ts";
 import { addHistory, type HistoryEntry, loadHistory } from "./lib/history.ts";
 import { currentModel, settings } from "./lib/settings.svelte.ts";
+import Battle from "./lib/ui/Battle.svelte";
 import HistoryPanel from "./lib/ui/HistoryPanel.svelte";
 import Petals from "./lib/ui/Petals.svelte";
 import PlumBranch from "./lib/ui/PlumBranch.svelte";
@@ -27,6 +29,7 @@ let imeOn = $state(false);
 let result: { stats: Stats; session: TypingSession } | null = $state(null);
 let history: HistoryEntry[] = $state(loadHistory());
 let abort: AbortController | null = null;
+let battle: Battle | undefined = $state();
 
 // ---- theme ---------------------------------------------------------------
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -147,6 +150,9 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
 <div class="grain" aria-hidden="true"></div>
 <div class="branch-wrap" aria-hidden="true"><PlumBranch /></div>
 {#if settings.petals}<Petals />{/if}
+{#if settings.battle && view !== "history"}
+  <Battle bind:this={battle} {runId} volume={settings.battleVolume} font={fontFamily(settings.font)} />
+{/if}
 
 <div class="shell">
   <header class="top">
@@ -230,6 +236,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
             onrestart={startRun}
             onnew={() => void loadPassage()}
             onime={(on) => (imeOn = on)}
+            onkana={settings.battle ? (k, done, total) => battle?.fire(k, done, total) : undefined}
           />
         {/key}
       </div>

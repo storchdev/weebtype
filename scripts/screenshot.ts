@@ -1,6 +1,6 @@
 // Visual check: screenshot the running app (bun serve / bun start) with headless Chromium.
 //   bun run scripts/screenshot.ts out.png [--theme dark] [--display ticker] [--hint romaji]
-//        [--font klee] [--type "kesa"] [--offline] [--settings] [--finish] [--url http://127.0.0.1:5174]
+//        [--font klee] [--type "kesa" [--wait ms]] [--battle] [--offline] [--settings] [--finish] [--url http://127.0.0.1:5174]
 // --offline serves Tatoeba/builtin passages instead of calling the LLM.
 
 import { chromium } from "playwright-core";
@@ -29,6 +29,7 @@ const settings: Record<string, unknown> = { petals: false };
 for (const k of ["theme", "display", "hint", "font", "level"]) if (opt(k)) settings[k] = opt(k);
 if (opt("size")) settings.fontSize = Number(opt("size"));
 if (opt("petals")) settings.petals = opt("petals") === "on";
+if (flag("battle")) settings.battle = true;
 await page.addInitScript((s) => localStorage.setItem("weebtype.settings.v1", JSON.stringify(s)), settings);
 
 if (flag("offline")) {
@@ -47,7 +48,7 @@ await page.waitForTimeout(800);
 const keys = opt("type");
 if (keys) {
   for (const k of keys) await page.keyboard.press(k === " " ? "Space" : k, { delay: 30 });
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(Number(opt("wait") ?? 400));
 }
 if (flag("finish")) {
   // Type the whole passage using the hint's romaji guide.
