@@ -27,11 +27,14 @@ Use `bun dev` for development (Vite on 5173 with hot reload, API on 5174).
 - Type romaji: `ka`, `shi`/`si`, `kya`, `nn`/`n'`, double consonants for っ (or `xtu`/`ltu`).
 - Punctuation: `,`→、 `.`→。 `[`→「 `]`→」 `-`→ー `?`→？ `!`→！
 - A wrong key is blocked and counted as a miss.
-- <kbd>Tab</kbd> restarts, <kbd>Esc</kbd> opens settings (or goes back), and on the results screen <kbd>Enter</kbd> starts the next passage.
+- <kbd>Tab</kbd> restarts, <kbd>Shift</kbd>+<kbd>Tab</kbd> loads a new passage, <kbd>Esc</kbd> opens settings (or goes back), and on the results screen <kbd>Enter</kbd> starts the next passage.
 
 Settings: generator and model, vocabulary level (JLPT N5–N1, or native), approximate length
 in kana, topic, hint mode (romaji + meaning / romaji / off), paragraph or scrolling-line
 layout, light/dark/auto theme, font and size, falling petals.
+
+History (記録) is kept in the browser's localStorage; export it to a JSON file and import
+it elsewhere (imports merge, duplicates are skipped).
 
 ## License & attribution
 

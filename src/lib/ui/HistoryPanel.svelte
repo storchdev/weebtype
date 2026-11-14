@@ -1,11 +1,75 @@
 <script lang="ts">
-import { clearHistory, type HistoryEntry } from "../history.ts";
+import {
+  clearHistory,
+  exportHistory,
+  type HistoryEntry,
+  mergeHistory,
+  parseHistoryFile,
+  saveHistory,
+} from "../history.ts";
 
 interface Props {
   entries: HistoryEntry[];
-  onclear: () => void;
+  onchange: (entries: HistoryEntry[]) => void;
 }
-let { entries, onclear }: Props = $props();
+let { entries, onchange }: Props = $props();
+
+let fileInput: HTMLInputElement | undefined = $state();
+let status = $state("");
+let statusError = $state(false);
+let confirmClear = $state(false);
+let confirmTimer: ReturnType<typeof setTimeout> | undefined;
+
+function say(msg: string, error = false): void {
+  status = msg;
+  statusError = error;
+}
+
+function doExport(): void {
+  const blob = new Blob([exportHistory(entries)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `weebtype-history-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  say(`Exported ${entries.length} ${entries.length === 1 ? "test" : "tests"}.`);
+}
+
+async function doImport(e: Event): Promise<void> {
+  const input = e.currentTarget as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  try {
+    const parsed = parseHistoryFile(await file.text());
+    const { list, added } = mergeHistory(entries, parsed.entries);
+    saveHistory(list);
+    onchange(list);
+    const dup = parsed.entries.length - added;
+    const extra = [dup && `${dup} already here`, parsed.invalid && `${parsed.invalid} unreadable`].filter(
+      Boolean,
+    );
+    say(
+      `Imported ${added} ${added === 1 ? "test" : "tests"}${extra.length ? ` (${extra.join(", ")})` : ""}.`,
+    );
+  } catch (err) {
+    say(`Couldn't import ${file.name}: ${err instanceof Error ? err.message : String(err)}`, true);
+  }
+}
+
+function doClear(): void {
+  if (!confirmClear) {
+    confirmClear = true;
+    clearTimeout(confirmTimer);
+    confirmTimer = setTimeout(() => (confirmClear = false), 3000);
+    return;
+  }
+  confirmClear = false;
+  clearHistory();
+  onchange([]);
+  say("History cleared.");
+}
 
 const W = 520;
 const H = 80;
@@ -41,9 +105,20 @@ function when(t: number): string {
 </script>
 
 <section class="history">
-  <h2>記録 <span>history</span></h2>
+  <header>
+    <h2>記録 <span>history</span></h2>
+    <div class="tools">
+      <button onclick={doExport} disabled={!entries.length}>export</button>
+      <button onclick={() => fileInput?.click()}>import</button>
+      <button class:danger={confirmClear} onclick={doClear} disabled={!entries.length}
+        >{confirmClear ? "click again to clear" : "clear"}</button
+      >
+      <input type="file" accept="application/json,.json" hidden bind:this={fileInput} onchange={doImport} />
+    </div>
+  </header>
+  {#if status}<p class="status" class:error={statusError}>{status}</p>{/if}
   {#if entries.length === 0}
-    <p class="empty">No tests yet. Finish one and it'll show up here.</p>
+    <p class="empty">No tests yet. Finish one and it'll show up here, or import an exported file.</p>
   {:else}
     <dl class="summary">
       <div><dt>best</dt><dd>{Math.round(best)}<small>字/分</small></dd></div>
@@ -67,15 +142,6 @@ function when(t: number): string {
         </li>
       {/each}
     </ol>
-    <button
-      class="clear"
-      onclick={() => {
-        if (confirm("Clear all history?")) {
-          clearHistory();
-          onclear();
-        }
-      }}>clear history</button
-    >
   {/if}
 </section>
 
@@ -89,11 +155,57 @@ function when(t: number): string {
       transform: translateY(10px);
     }
   }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
   h2 {
     font-family: var(--title-font);
     font-weight: 600;
     font-size: 24px;
-    margin: 0 0 18px;
+    margin: 0;
+  }
+  .tools {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--faint);
+    border-radius: 999px;
+  }
+  .tools button {
+    background: none;
+    border: none;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    transition:
+      background-color 0.2s,
+      color 0.2s;
+  }
+  .tools button:hover:not(:disabled) {
+    color: var(--ink);
+    background: var(--faint);
+  }
+  .tools button:disabled {
+    color: var(--muted);
+    opacity: 0.5;
+    cursor: default;
+  }
+  .tools button.danger {
+    background: var(--accent);
+    color: var(--paper-raised);
+  }
+  .status {
+    margin: -6px 0 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .status.error {
+    color: var(--accent);
   }
   h2 span {
     font-family: var(--ui-font);
@@ -171,13 +283,5 @@ function when(t: number): string {
     white-space: nowrap;
     text-overflow: ellipsis;
     color: var(--ink-soft);
-  }
-  .clear {
-    margin-top: 16px;
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 12px;
-    text-decoration: underline;
   }
 </style>

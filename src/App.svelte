@@ -107,6 +107,12 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (settingsOpen) return;
+  if (e.key === "Tab" && e.shiftKey && view !== "typing") {
+    // Shift+Tab: new passage from results/history (the typing view handles its own).
+    e.preventDefault();
+    void loadPassage();
+    return;
+  }
   if (view === "results") {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -187,7 +193,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
 
   <main>
     {#if view === "history"}
-      <HistoryPanel entries={history} onclear={() => (history = [])} />
+      <HistoryPanel entries={history} onchange={(list) => (history = list)} />
     {:else if view === "results" && result}
       <Results
         stats={result.stats}
@@ -209,6 +215,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
             active={!settingsOpen && view === "typing" && !loading}
             onfinish={finish}
             onrestart={startRun}
+            onnew={() => void loadPassage()}
             onime={(on) => (imeOn = on)}
           />
         {/key}
@@ -227,6 +234,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
 
   <footer>
     <span><kbd>Tab</kbd> restart</span>
+    <span><kbd>⇧ Tab</kbd> new passage</span>
     <span><kbd>Esc</kbd> settings</span>
     {#if health && !health.dictionary}
       <span class="warn">dictionary not loaded — run <code>bun run data:import</code> for meanings</span>

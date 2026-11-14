@@ -16,10 +16,11 @@ interface Props {
   active: boolean;
   onfinish: (stats: Stats, session: TypingSession) => void;
   onrestart: () => void;
+  onnew: () => void;
   onime: (on: boolean) => void;
 }
 
-let { passage, hint, display, font, fontSize, active, onfinish, onrestart, onime }: Props = $props();
+let { passage, hint, display, font, fontSize, active, onfinish, onrestart, onnew, onime }: Props = $props();
 
 // A new TypingArea is mounted per run (parent wraps it in {#key}), so the
 // passage is fixed for this component's lifetime.
@@ -164,7 +165,8 @@ function onKey(e: KeyboardEvent): void {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "Tab") {
     e.preventDefault();
-    onrestart();
+    if (e.shiftKey) onnew();
+    else onrestart();
     return;
   }
   if (e.key.length !== 1) return;
