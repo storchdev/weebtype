@@ -1,4 +1,8 @@
 // Run the Bun API server (with --watch) and the Vite dev server together.
+// Downloads + builds the dictionary data first if data/ is empty (no-op otherwise).
+
+await Bun.spawn(["bun", "run", "scripts/setup-data.ts", "--soft"], { stdout: "inherit", stderr: "inherit" })
+  .exited;
 
 const procs = [
   Bun.spawn(["bun", "--watch", "server/main.ts"], { stdout: "inherit", stderr: "inherit" }),

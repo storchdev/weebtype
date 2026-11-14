@@ -47,7 +47,7 @@ current word. Full scope, decisions and progress: **[PLAN.md](PLAN.md)**. Read i
 | `bun run check`                      | `tsc --noEmit` + `svelte-check --fail-on-warnings`                       |
 | `bun test`                           | Unit tests (`tests/`)                                                    |
 | `bun run lint` / `bun run format`    | Biome check / format                                                     |
-| `bun run data:import [dir]`          | Copy Jitendex data from a 10ff-yomitan-style dir into `data/`            |
+| `bun run data:setup [--force]`       | Download Jitendex + Kanjium pitch, build `data/*.json` (auto-run by `bun start`/`bun dev` when `data/` is incomplete) |
 | `bun scripts/screenshot.ts out.png …` | Headless Chromium screenshot of a running server (see flags in the file: `--offline`, `--builtin`, `--theme`, `--display`, `--font`, `--type "keys"`, `--finish`, `--settings`) |
 
 Visual changes: run the server (`bun run serve` after `vite build`), take screenshots with
@@ -63,9 +63,9 @@ src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPa
                    PlumBranch, Petals)
 src/lib/*.ts       settings (runes, localStorage), api client, history, fonts
 src/app.css        theme tokens (light/dark) + base styles
-scripts/           dev runner, data import, screenshot
+scripts/           dev runner, data setup (download + pure converters in build-data.ts), screenshot
 tests/             bun tests for the core modules
-data/              Jitendex JSON (gitignored, imported)
+data/              dictionary/pitch/examples JSON (gitignored, built by data:setup)
 ```
 
 ## Conventions & gotchas
@@ -87,8 +87,9 @@ data/              Jitendex JSON (gitignored, imported)
 - LLM CLIs run from an empty temp dir (so they don't read project instructions) with
   `--tools "" --setting-sources "" --no-session-persistence` (claude) / `-s read-only --ephemeral` (codex).
 - Don't `pkill -f "bun server/main.ts"` from an agent shell — the pattern matches the shell itself.
-- The reference implementation for the dictionary hint lives at
-  `/home/hudson/Desktop/japanslop/10ff-yomitan` (content.js, deinflect.js).
+- `data/` is built only from public sources (Jitendex Yomitan zip, Kanjium `accents.txt`) by
+  `scripts/setup-data.ts`; never make setup depend on a local path. Formats are documented in
+  `scripts/build-data.ts` and must stay what `server/dictionary.ts` reads.
 - Biome lints `.svelte` files without seeing the template, so unused-import/variable and
   `useConst` rules are off for `*.svelte` (in `biome.json`). Don't remove "unused" imports there by hand.
 - Buttons use the shared classes in `app.css`: `.tbtn` (text button, accent hairline underline

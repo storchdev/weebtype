@@ -10,13 +10,18 @@ and a dictionary card (meaning, pitch accent and an example) also follows the wo
 
 Requirements: [Bun](https://bun.sh) ≥ 1.2, and at least one of the
 [`claude`](https://docs.claude.com/en/docs/claude-code) or `codex` CLIs, logged in.
-Without either CLI it still works, using Tatoeba sentences offline.
+Without either CLI it still works, using Tatoeba sentences offline. `unzip` must be on
+your PATH for the one-time dictionary download.
 
 ```sh
-bun install                 # deps + git hooks
-bun run data:import <dir>   # Jitendex/pitch/examples JSON from a 10ff-yomitan-style dir
-bun start                   # build, serve on http://127.0.0.1:5174 and open the browser
+bun install   # deps + git hooks
+bun start     # build, serve on http://127.0.0.1:5174 and open the browser
 ```
+
+On the first run, `bun start` (and `bun dev`) downloads Jitendex (~40 MB) and the Kanjium
+pitch-accent list and builds `data/` (~60 MB, takes a few seconds). After that it is skipped.
+Run `bun run data:setup --force` to update to the latest Jitendex, or pass
+`--jitendex file.zip` / `--pitch accents.txt` to use files you already downloaded.
 
 Use `bun dev` for development (Vite on 5173 with hot reload, API on 5174).
 `bun run check`, `bun test` and `bun run lint` must pass before you commit. See
@@ -42,11 +47,12 @@ weebtype is licensed under the **GNU GPL v3 or later** (see [LICENSE](LICENSE)).
 the deinflection rules from [Yomitan](https://github.com/yomidevs/yomitan) (GPLv3) in
 `server/vendor/deinflect.js`, and its pitch-accent mora logic is ported from Yomitan.
 
-The dictionary data is not in this repo. Imported data comes from:
+The dictionary data is not in this repo; `data:setup` downloads it from:
 
 - [Jitendex](https://jitendex.org) — CC BY-SA 4.0, based on JMdict
   ([EDRDG licence](https://www.edrdg.org/edrdg/licence.html)).
 - Example and fallback sentences from [Tatoeba](https://tatoeba.org) — CC BY 2.0 FR.
+- Pitch accents from [Kanjium](https://github.com/mifunetoshiro/kanjium) — CC BY-SA 4.0.
 
 Fonts (Noto Sans/Serif JP, Klee One, Zen Maru Gothic, Shippori Mincho, M PLUS 1 Code,
 Yuji Syuku, Dela Gothic One) are bundled through Fontsource under the SIL Open Font License.

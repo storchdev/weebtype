@@ -15,7 +15,7 @@ let dictLoaded = false;
 const dictReady = Dictionary.load()
   .then((d) => {
     if (!d) {
-      console.warn("[dict] data/dictionary.json not found — run `bun run data:import <dir>` for hints.");
+      console.warn("[dict] data/dictionary.json not found — run `bun run data:setup` for hints.");
       return;
     }
     service.dict = d;

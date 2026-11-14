@@ -1,5 +1,5 @@
 // Jitendex dictionary + pitch + examples lookup, ported from 10ff-yomitan/content.js.
-// Data files live in data/ (see scripts/import-data.ts).
+// Data files live in data/, built from public sources by scripts/setup-data.ts.
 
 import { join } from "node:path";
 import { allKana, toHiragana } from "../src/lib/core/kana.ts";

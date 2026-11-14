@@ -253,7 +253,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     <span><kbd>⇧ Tab</kbd> new passage</span>
     <span><kbd>Esc</kbd> settings</span>
     {#if health && !health.dictionary}
-      <span class="warn">dictionary not loaded — run <code>bun run data:import</code> for meanings</span>
+      <span class="warn">dictionary not loaded — run <code>bun run data:setup</code> for meanings</span>
     {/if}
     {#if sourceLabel}<span class="source">{sourceLabel}</span>{/if}
   </footer>
