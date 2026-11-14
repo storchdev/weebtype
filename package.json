@@ -1,0 +1,37 @@
+{
+  "name": "weebtype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
+    "dev": "bun run scripts/dev.ts",
+    "build": "vite build",
+    "start": "vite build && bun run server/main.ts --open",
+    "serve": "bun run server/main.ts",
+    "check": "tsc --noEmit -p tsconfig.json && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "data:import": "bun run scripts/import-data.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.7",
+    "@sveltejs/vite-plugin-svelte": "5",
+    "@types/bun": "^1.4.4",
+    "svelte": "5",
+    "svelte-check": "^4.7.8",
+    "typescript": "5.9",
+    "vite": "6"
+  },
+  "dependencies": {
+    "@fontsource/dela-gothic-one": "^5.3.0",
+    "@fontsource/klee-one": "^5.3.1",
+    "@fontsource/m-plus-1-code": "^5.3.1",
+    "@fontsource/noto-sans-jp": "^5.3.1",
+    "@fontsource/noto-serif-jp": "^5.3.1",
+    "@fontsource/shippori-mincho": "^5.3.0",
+    "@fontsource/yuji-syuku": "^5.3.1",
+    "@fontsource/zen-maru-gothic": "^5.3.1"
+  }
+}
