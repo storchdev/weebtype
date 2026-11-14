@@ -16,6 +16,31 @@ interface Props {
 let { entries, surface, markerX, tokenKey }: Props = $props();
 
 const entry = $derived(entries?.[0]);
+
+// Jitendex tags → printed-dictionary part-of-speech abbreviations. Anything else
+// (kana, forms, transitivity, …) is noise in a glance-at hint and is dropped.
+const POS: Array<[RegExp, string]> = [
+  [/dan|ichidan|godan|suru|kuru|^verb|aux-verb/, "v."],
+  [/^adjective|^adjectival|keiyou|na-adj|no-adj/, "adj."],
+  [/^adverb/, "adv."],
+  [/^pronoun/, "pron."],
+  [/^noun/, "n."],
+  [/^particle/, "prt."],
+  [/^counter/, "ctr."],
+  [/^suffix/, "suf."],
+  [/^prefix/, "pref."],
+  [/^conjunction/, "conj."],
+  [/^interjection/, "int."],
+  [/^expression/, "exp."],
+];
+const pos = $derived.by(() => {
+  const out: string[] = [];
+  for (const t of entry?.tags ?? []) {
+    const hit = POS.find(([re]) => re.test(t));
+    if (hit && !out.includes(hit[1])) out.push(hit[1]);
+  }
+  return out.slice(0, 2).join(" ");
+});
 // Other senses of the *same* word only; homophones written differently are noise here.
 const others = $derived(
   (entries ?? []).slice(1, 3).filter((o) => entry && (o.term === entry.term || o.term === surface)),
@@ -47,14 +72,14 @@ const others = $derived(
           {/if}
         </div>
         <div class="senses">
-          {#if entry.tags.length}
-            <div class="tags">{entry.tags.slice(0, 3).join(" · ")}</div>
-          {/if}
-          <ol class="defs">
+          <div class="defline">
+            {#if pos}<span class="pos">{pos}</span>{/if}
+            <ol class="defs">
             {#each entry.defs.slice(0, 3) as d}
               <li>{d}</li>
             {/each}
-          </ol>
+            </ol>
+          </div>
           {#if others.length}
             <div class="others">
               {#each others as o}
@@ -186,15 +211,23 @@ const others = $derived(
   }
   .senses {
     min-width: 0;
+    /* defs sit level with the headword, not the small reading above it */
+    padding-top: calc(1.6em * 12 / 13 + 4px);
   }
-  .tags {
-    font-size: 10.5px;
+  .defline {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .pos {
+    font-family: var(--title-font);
+    font-style: italic;
     color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    white-space: nowrap;
   }
   .defs {
-    margin: 2px 0 0;
+    margin: 0;
     padding: 0;
     list-style: none;
     counter-reset: d;
