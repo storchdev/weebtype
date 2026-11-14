@@ -48,7 +48,7 @@ current word. Full scope, decisions and progress: **[PLAN.md](PLAN.md)**. Read i
 | `bun test`                           | Unit tests (`tests/`)                                                    |
 | `bun run lint` / `bun run format`    | Biome check / format                                                     |
 | `bun run data:setup [--force]`       | Download Jitendex + Kanjium pitch, build `data/*.json` (auto-run by `bun start`/`bun dev` when `data/` is incomplete) |
-| `bun scripts/screenshot.ts out.png …` | Headless Chromium screenshot of a running server (see flags in the file: `--offline`, `--builtin`, `--theme`, `--display`, `--font`, `--type "keys"` + `--wait ms`, `--finish`, `--settings`, `--battle`) |
+| `bun scripts/screenshot.ts out.png …` | Headless Chromium screenshot of a running server (see flags in the file: `--offline`, `--builtin`, `--theme`, `--display`, `--font`, `--hint romaji|kana|off`, `--dict on|off`, `--type "keys"` + `--wait ms`, `--finish`, `--settings`, `--battle`) |
 
 Visual changes: run the server (`bun run serve` after `vite build`), take screenshots with
 the script and look at them before committing.
@@ -86,7 +86,7 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
 - `settings.backend` may be `"tatoeba"` (no-AI mode, `offlineOnly()`); `requestFor` still emits a valid
   `Backend` for the server, and `App.svelte` must route that mode to `fetchFallback`, never generate/prefetch.
 - Only settings that change *what is generated* (backend, model, level, length, topic) belong in
-  `requestFor`; anything in it triggers a reload on settings close. Hint/display/font are view-only.
+  `requestFor`; anything in it triggers a reload on settings close. Hint/dictionary/display/font are view-only.
 - Jitendex has no proper nouns. LLM passages carry `names` ({w, en}); `annotate` uses `nameEntry` only
   when the dictionary lookup misses (tag `"name"`).
 - Passage variety comes from `server/variety.ts` (directions + recent-passage list in the prompt).

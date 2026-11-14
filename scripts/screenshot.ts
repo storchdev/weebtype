@@ -1,5 +1,5 @@
 // Visual check: screenshot the running app (bun serve / bun start) with headless Chromium.
-//   bun run scripts/screenshot.ts out.png [--theme dark] [--display ticker] [--hint romaji]
+//   bun run scripts/screenshot.ts out.png [--theme dark] [--display ticker] [--hint kana] [--dict off]
 //        [--font klee] [--type "kesa" [--wait ms]] [--battle] [--offline] [--settings] [--finish] [--url http://127.0.0.1:6494]
 // --offline serves Tatoeba/builtin passages instead of calling the LLM.
 
@@ -28,6 +28,7 @@ page.on("pageerror", (e) => console.log("[pageerror]", e.message));
 const settings: Record<string, unknown> = { petals: false };
 for (const k of ["theme", "display", "hint", "font", "level"]) if (opt(k)) settings[k] = opt(k);
 if (opt("size")) settings.fontSize = Number(opt("size"));
+if (opt("dict")) settings.dictionary = opt("dict") !== "off";
 if (opt("petals")) settings.petals = opt("petals") === "on";
 if (flag("battle")) settings.battle = true;
 await page.addInitScript((s) => localStorage.setItem("weebtype.settings.v1", JSON.stringify(s)), settings);

@@ -10,6 +10,8 @@ import DictPanel from "./DictPanel.svelte";
 interface Props {
   passage: Passage;
   hint: HintMode;
+  /** Show the dictionary panel for the current word. */
+  dictionary: boolean;
   display: DisplayMode;
   font: string;
   fontSize: number;
@@ -33,6 +35,7 @@ interface Props {
 let {
   passage,
   hint,
+  dictionary,
   display,
   font,
   fontSize,
@@ -81,7 +84,7 @@ const linePitch = $derived(fontSize * LINE);
 let winH = $state(window.innerHeight);
 const maxLines = $derived.by(() => {
   const top = reserveTop + 62 + 64; // header + meta
-  const below = (hint === "full" ? (narrow ? 250 : 200) : 40) + 56 + reserveBottom; // panel + footer + stage
+  const below = (dictionary ? (narrow ? 250 : 200) : 40) + 56 + reserveBottom; // panel + footer + stage
   return Math.max(2, Math.min(5, Math.floor((winH - top - below) / linePitch)));
 });
 
@@ -291,7 +294,7 @@ function press(key: string): void {
 const guideX = $derived(pos.tokenX - offsetX);
 const guideY = $derived(pos.y - offsetY + pos.h * 0.94);
 const guideSize = $derived(Math.max(11, Math.min(16, fontSize * 0.36)));
-const dictEntry = $derived(hint === "full" ? passage.tokens[hintToken]?.dict : undefined);
+const dictEntry = $derived(dictionary ? passage.tokens[hintToken]?.dict : undefined);
 const markerX = $derived(Math.max(0, Math.min(guideX, viewportW - 18)));
 const panelY = $derived(viewportH + guideSize * 1.4 + 22);
 </script>
@@ -309,7 +312,7 @@ const panelY = $derived(viewportH + guideSize * 1.4 + 22);
   </div>
   <div class="progress"><div class="bar" style="transform: scaleX({progress})"></div></div>
 
-  <div class="stage" class:ready class:with-card={hint === "full"}>
+  <div class="stage" class:ready class:with-card={dictionary}>
     <div
       class="viewport {display}"
       bind:this={viewport}
@@ -362,11 +365,11 @@ const panelY = $derived(viewportH + guideSize * 1.4 + 22);
           >{hintGuide.rest.slice(1)}</span
           >{/if}
       </div>
-      {#if hint === "full"}
-        <div class="panel-pos" style="transform: translate3d(0, {panelY}px, 0)">
-          <DictPanel entries={dictEntry} surface={hintSurface} {markerX} tokenKey={hintToken} {narrow} />
-        </div>
-      {/if}
+    {/if}
+    {#if dictionary && !snap.finished}
+      <div class="panel-pos" style="transform: translate3d(0, {panelY}px, 0)">
+        <DictPanel entries={dictEntry} surface={hintSurface} {markerX} tokenKey={hintToken} {narrow} />
+      </div>
     {/if}
   </div>
   {#if touch}

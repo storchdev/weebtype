@@ -281,6 +281,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
           <TypingArea
             {passage}
             hint={settings.hint}
+            dictionary={settings.dictionary}
             display={settings.display}
             font={settings.font}
             {fontSize}

@@ -118,12 +118,18 @@ $effect(() => {
 
   <section>
     <h3>ヒント <span>hint</span></h3>
-    <div class="seg">
-      <button class="tbtn" class:on={settings.hint === "full"} onclick={() => (settings.hint = "full")}>romaji + meaning</button>
-      <button class="tbtn" class:on={settings.hint === "romaji"} onclick={() => (settings.hint = "romaji")}>romaji</button>
-      <button class="tbtn" class:on={settings.hint === "kana"} onclick={() => (settings.hint = "kana")}>kana only</button>
-      <button class="tbtn" class:on={settings.hint === "off"} onclick={() => (settings.hint = "off")}>off</button>
+    <div class="field">
+      <span class="label">Under the word</span>
+      <div class="seg">
+        <button class="tbtn" class:on={settings.hint === "romaji"} onclick={() => (settings.hint = "romaji")}>kana + romaji</button>
+        <button class="tbtn" class:on={settings.hint === "kana"} onclick={() => (settings.hint = "kana")}>kana only</button>
+        <button class="tbtn" class:on={settings.hint === "off"} onclick={() => (settings.hint = "off")}>off</button>
+      </div>
     </div>
+    <label class="field check">
+      <input type="checkbox" bind:checked={settings.dictionary} />
+      <span>Dictionary <small>meaning, pitch accent, example</small></span>
+    </label>
   </section>
 
   <section>
@@ -318,9 +324,13 @@ $effect(() => {
     font-size: 12px;
     color: var(--ink-soft);
   }
-  .label small {
+  .label small,
+  .check small {
     color: var(--muted);
     margin-left: 4px;
+  }
+  .check small {
+    font-size: 12px;
   }
   input:not([type]),
   input[type="number"] {

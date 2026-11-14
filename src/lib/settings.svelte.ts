@@ -3,7 +3,8 @@
 import { type Backend, LEVELS, type Level } from "./core/types.ts";
 import { FONTS } from "./fonts.ts";
 
-export type HintMode = "full" | "romaji" | "kana" | "off";
+/** The guide under the current word: reading + romaji, reading only, or none. */
+export type HintMode = "romaji" | "kana" | "off";
 export type DisplayMode = "paragraph" | "ticker";
 export type ThemeMode = "system" | "light" | "dark";
 
@@ -22,6 +23,8 @@ export interface Settings {
   length: number;
   topic: string;
   hint: HintMode;
+  /** Dictionary panel (meaning, pitch, example) under the text, independent of `hint`. */
+  dictionary: boolean;
   display: DisplayMode;
   theme: ThemeMode;
   font: string;
@@ -49,7 +52,8 @@ export const DEFAULTS: Settings = {
   level: "N4",
   length: 100,
   topic: "",
-  hint: "full",
+  hint: "romaji",
+  dictionary: true,
   display: "paragraph",
   theme: "system",
   font: "noto-sans",
@@ -88,7 +92,14 @@ function sanitize(raw: unknown): Settings {
     level: oneOf(r.level, LEVELS, DEFAULTS.level),
     length: num(r.length, 20, 1000, DEFAULTS.length),
     topic: str(r.topic, ""),
-    hint: oneOf(r.hint, ["full", "romaji", "kana", "off"] as const, DEFAULTS.hint),
+    // v1 had one `hint` setting where "full" meant romaji guide + dictionary.
+    hint: r.hint === "full" ? "romaji" : oneOf(r.hint, ["romaji", "kana", "off"] as const, DEFAULTS.hint),
+    dictionary:
+      typeof r.dictionary === "boolean"
+        ? r.dictionary
+        : r.hint === undefined
+          ? DEFAULTS.dictionary
+          : r.hint === "full",
     display: oneOf(r.display, ["paragraph", "ticker"] as const, DEFAULTS.display),
     theme: oneOf(r.theme, ["system", "light", "dark"] as const, DEFAULTS.theme),
     font: oneOf(
