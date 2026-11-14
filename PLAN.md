@@ -136,6 +136,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Fused syllables are one note: the first mora of たい/さん/じゅう waits silently for the second, then both sound together (user: "it should just play the whole syllable on the 2nd").
+
 - 2026-11-14 — Singer fuses diphthongs (たい, こえ) and ん with the vowel before them via VCV transition samples; long-vowel holds use them too (no breathy "- う" re-attack).
 
 - 2026-11-14 — Battle stage band (bigger characters, flat kana flights, no overlap with text/results), shared `layout.ts` geometry, phone layout + on-screen keyboard input.

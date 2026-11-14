@@ -27,6 +27,8 @@ let { runId, volume, font, tokens, range }: Props = $props();
 
 /** Note per char of the session target (concatenated readings). */
 const melody = $derived(tokens ? accentMelody(tokens, range) : []);
+// the session target (readings joined), so the singer can see the next mora
+const reading = $derived(tokens ? tokens.map((t) => t.groups.map((g) => g.r).join("")).join("") : "");
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -115,7 +117,11 @@ $effect(() => {
 /** Called by the typing view for each batch of newly completed kana. */
 export function fire(kana: string, done: number, of: number): void {
   total = of;
-  singer.sing(kana, melody.length >= done ? melody.slice(done - kana.length, done) : undefined);
+  singer.sing(
+    kana,
+    melody.length >= done ? melody.slice(done - kana.length, done) : undefined,
+    reading.slice(done, done + 2),
+  );
   singing = true;
   clearTimeout(singTimer);
   singTimer = setTimeout(() => (singing = false), 150);

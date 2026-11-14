@@ -109,8 +109,9 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   Pitch-suffixed/note-named folders are kept as pitch sets (`pitchTag`), other suffixes
   (S/W expressions) are dropped; `OtoIndex.find(s, targetHz, mainHz)` picks the nearest set.
   Morae that continue a vowel — diphthong second halves (たい, こえ), ん after a vowel (`Syllable.from`)
-  and long-vowel holds — use the bank's VCV transition (`a い`, `a ん`, `u う`) with a soft entry, and
-  fade out the previous note instead of re-attacking.
+  and long-vowel holds — use the bank's VCV transition (`a い`, `a ん`, `u う`). The first mora is held
+  back (`Singer.pending`, decided from `sing(text, notes, ahead)` lookahead that Battle passes) and both
+  halves are rendered into **one** note (`splice`) when the second is typed — never two separate notes.
 - Singer notes are absolute semitones from A4 (`accentMelody`, major pentatonic of the user's lowest note; range from settings `voiceLow`/`voiceHigh`). `Singer.play` makes a
   new `Audio` per note from a cached blob URL so notes overlap — don't go back to one shared element.
 - Sound is **only** played via `<audio>` elements (files or rendered WAV blobs). Don't connect

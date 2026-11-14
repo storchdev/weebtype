@@ -264,6 +264,8 @@ async function renderSample(
   s: Sample,
   targetHz: number,
   how: Entry = "attack",
+  /** Seconds of vowel after the consonant (shorter for the first half of a fused pair). */
+  vowelLen = BANK_NOTE_LEN + 0.08,
 ): Promise<Float32Array> {
   const hold = how === "hold";
   const f0 = sampleF0(s, e) ?? targetHz;
@@ -278,7 +280,7 @@ async function renderSample(
   const lead = hold ? 0 : how === "glide" ? Math.min(fullLead, 0.07) : Math.min(fullLead, MAX_LEAD);
   const start = off + fullLead - lead + (hold ? 0.03 : 0);
   // consonant as recorded, then about one note of vowel (both in source time)
-  const srcDur = Math.max(0.05, Math.min(end - start, lead + (BANK_NOTE_LEN + 0.08) * rate));
+  const srcDur = Math.max(0.05, Math.min(end - start, lead + vowelLen * rate));
   const outDur = srcDur / rate;
   const ctx = new OfflineAudioContext(1, Math.ceil(SAMPLE_RATE * (outDur + 0.01)), SAMPLE_RATE);
   const buf = ctx.createBuffer(1, s.data.length, s.rate);
@@ -289,7 +291,9 @@ async function renderSample(
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, 0);
   g.gain.linearRampToValueAtTime(1, hold ? 0.06 : how === "glide" ? 0.045 : 0.006);
-  g.gain.setValueAtTime(1, Math.max(0.01, outDur - 0.12));
+  // a short first half hands over quickly; a full note decays
+  const tail = vowelLen < 0.2 ? 0.04 : 0.12;
+  g.gain.setValueAtTime(1, Math.max(0.01, outDur - tail));
   g.gain.linearRampToValueAtTime(0, outDur);
   src.connect(g).connect(ctx.destination);
   src.start(0, start, srcDur);
@@ -300,20 +304,21 @@ async function renderSample(
   return data;
 }
 
-/** Short volume ramp then pause (element volume, no live Web Audio). */
-function fadeOut(a: HTMLAudioElement, secs: number): void {
-  const v0 = a.volume;
-  const t0 = performance.now();
-  const step = () => {
-    const k = (performance.now() - t0) / (secs * 1000);
-    if (k >= 1 || a.paused) {
-      a.pause();
-      return;
-    }
-    a.volume = v0 * (1 - k);
-    requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
+/** Vowel length of the first half of a fused syllable (た of たい) before the glide. */
+const FIRST_HALF = 0.14;
+/** Crossfade between the halves of a fused syllable. */
+const SPLICE = 0.045;
+
+/** Joins two rendered halves with a short overlap: the second fades in as the first fades out. */
+function splice(a: Float32Array, b: Float32Array): Float32Array {
+  const lap = Math.min(Math.round(SPLICE * SAMPLE_RATE), a.length, b.length);
+  const out = new Float32Array(a.length + b.length - lap);
+  out.set(a);
+  for (let i = 0; i < b.length; i++) {
+    const j = a.length - lap + i;
+    out[j] = (out[j] as number) + (b[i] as number);
+  }
+  return out;
 }
 
 export class Singer {
@@ -335,13 +340,26 @@ export class Singer {
     this.range = clampRange(r);
   }
 
+  /** A mora held back because the next one continues its vowel (た of たい). */
+  private pending: { s: Syllable; semis: number } | null = null;
+
   /**
    * Sing newly typed kana. `notes` (semitones from A4 per char of `text`, from the
    * passage's accent melody) set the pitch; without them a pentatonic melody wanders.
+   * `ahead` is the passage text right after `text`: a mora whose next mora continues
+   * its vowel (たい, さん, じゅう) stays silent until that one is typed, then the whole
+   * syllable sounds as one note.
    */
-  sing(text: string, notes?: readonly number[]): void {
+  sing(text: string, notes?: readonly number[], ahead = ""): void {
     if (this.volume <= 0) return;
     const sylls = syllables(text, this.lastVowel);
+    const continues = (s: Syllable, i: number): boolean => {
+      if (s.vowel === null || s.vowel === "n") return false;
+      const after = syllables(ahead, s.vowel)[0];
+      // only the very next mora counts (not one past punctuation)
+      const next = sylls[i + 1] ?? (after?.at === 0 ? after : undefined);
+      return !!next && (next.hold === true || next.from !== undefined);
+    };
     if ([...text].some((c) => "、。！？」".includes(c))) this.melody.cadence();
     sylls.forEach((s, i) => {
       const delay = i * STAGGER_MS;
@@ -358,6 +376,19 @@ export class Singer {
       const semis =
         note !== undefined ? note : s.hold ? this.lastSemis : fitToRange(this.melody.next(), this.range);
       this.lastSemis = semis;
+      const first = this.pending;
+      this.pending = null;
+      // the second half of a syllable: sing both halves together now
+      // (in a chain like あおい the い then glides on its own)
+      if (first && (s.hold || s.from)) {
+        this.play(first.s, first.semis, delay, { s, semis });
+        return;
+      }
+      if (first) this.play(first.s, first.semis, delay); // next mora never came as expected
+      if (continues(s, i)) {
+        this.pending = { s, semis };
+        return;
+      }
       this.play(s, semis, delay);
     });
   }
@@ -378,34 +409,49 @@ export class Singer {
   reset(): void {
     this.melody.reset();
     this.lastVowel = null;
+    this.pending = null;
   }
 
   /** Stop every sounding note (battle mode closed). */
   sleep(): void {
     for (const a of this.ringing) a.pause();
     this.ringing.length = 0;
+    this.pending = null;
   }
 
-  private url(s: Syllable, semis: number): Promise<string | null> {
+  /** One rendered mora: its cache key and how to render it. */
+  private async part(
+    bank: LoadedBank | null,
+    s: Syllable,
+    semis: number,
+    vowelLen?: number,
+  ): Promise<{ key: string; render: () => Promise<Float32Array> }> {
+    const hz = hzOf(semis);
+    const entry = bank ? bank.index.find(s, hz, await mainHz(bank)) : null;
+    const glide = !s.hold && !!s.from && !!entry && entry.alias.includes(" ") && !entry.alias.startsWith("-");
+    const how: Entry = s.hold ? "hold" : glide ? "glide" : "attack";
+    const key = `${entry ? `${entry.file}|${entry.alias}` : `${s.onset}|${s.consonant}|${s.vowel}`}|${semis}|${how}|${vowelLen ?? ""}`;
+    const render = async (): Promise<Float32Array> => {
+      if (entry) {
+        const sample = await loadSample(entry.file);
+        if (sample) return renderSample(entry, sample, hz, how, vowelLen);
+      }
+      return renderSyllable(s, semis);
+    };
+    return { key, render };
+  }
+
+  /** Rendered note (or fused pair: `then` follows `s` within one note) as a blob URL. */
+  private url(s: Syllable, semis: number, then?: { s: Syllable; semis: number }): Promise<string | null> {
     return voicebank().then(async (bank) => {
-      const hz = hzOf(semis);
-      const entry = bank ? bank.index.find(s, hz, await mainHz(bank)) : null;
-      const glide =
-        !s.hold && !!s.from && !!entry && entry.alias.includes(" ") && !entry.alias.startsWith("-");
-      const how: Entry = s.hold ? "hold" : glide ? "glide" : "attack";
-      const h = how === "attack" ? "" : `|${how}`;
-      const key = entry
-        ? `${entry.file}|${entry.alias}|${semis}${h}`
-        : `${s.onset}|${s.consonant}|${s.vowel}|${semis}${h}`;
+      const a = await this.part(bank, s, semis, then ? FIRST_HALF : undefined);
+      const b = then ? await this.part(bank, then.s, then.semis) : null;
+      const key = b ? `${a.key}+${b.key}` : a.key;
       let url = this.cache.get(key);
       if (!url) {
         url = (async () => {
-          let data: Float32Array | null = null;
-          if (entry) {
-            const sample = await loadSample(entry.file);
-            if (sample) data = await renderSample(entry, sample, hz, how);
-          }
-          data ??= await renderSyllable(s, semis);
+          const one = await a.render();
+          const data = b ? splice(one, await b.render()) : one;
           return URL.createObjectURL(encodeWav(data, SAMPLE_RATE));
         })().catch(() => null);
         this.cache.set(key, url);
@@ -414,17 +460,14 @@ export class Singer {
     });
   }
 
-  private play(s: Syllable, semis: number, delay: number): void {
+  private play(s: Syllable, semis: number, delay: number, then?: { s: Syllable; semis: number }): void {
     const due = performance.now() + delay;
-    void this.url(s, semis).then((url) => {
+    void this.url(s, semis, then).then((url) => {
       if (!url) return;
       setTimeout(
         () => {
           const a = new Audio(url);
           a.volume = Math.min(1, this.volume ** 1.5 * 0.85);
-          // a glide/hold carries the previous vowel itself: hand over instead of doubling it
-          const prev = this.ringing[this.ringing.length - 1];
-          if (prev && (s.hold || s.from)) fadeOut(prev, 0.05);
           const done = () => {
             const i = this.ringing.indexOf(a);
             if (i >= 0) this.ringing.splice(i, 1);
