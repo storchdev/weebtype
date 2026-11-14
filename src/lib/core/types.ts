@@ -56,8 +56,6 @@ export interface GenerateRequest {
   /** Approximate number of kana to type. */
   length: number;
   topic: string;
-  /** Whether to include dictionary annotations. */
-  dict: boolean;
 }
 
 export interface HealthResponse {

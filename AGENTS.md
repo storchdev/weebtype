@@ -80,6 +80,8 @@ data/              Jitendex JSON (gitignored, imported)
   in components or SVGs (use `currentColor` / `var(--…)`).
 - `server/vendor/deinflect.js` is vendored from Yomitan (GPLv3) as plain JS with a hand-written
   `deinflect.d.ts` (only the API we use). Keep its license header; don't type-check the JS.
+- Only settings that change *what is generated* (backend, model, level, length, topic) belong in
+  `requestFor`; anything in it triggers a reload on settings close. Hint/display/font are view-only.
 - Passage variety comes from `server/variety.ts` (directions + recent-passage list in the prompt).
   Don't reintroduce a numeric "seed" in prompts — models ignore it.
 - LLM CLIs run from an empty temp dir (so they don't read project instructions) with

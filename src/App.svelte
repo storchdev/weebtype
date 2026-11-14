@@ -216,6 +216,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     {:else if loading && !passage}
       {@render loader()}
     {:else if passage}
+      <div class="typing-wrap">
       <div class="typing" class:dim={loading}>
         {#key runId}
           <TypingArea
@@ -233,8 +234,11 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
         {/key}
       </div>
       {#if loading}
-        {@render loader()}
+        <!-- over the dimmed text, not below it (the stage reserves room for the
+             dictionary panel, which pushed a trailing loader off-screen) -->
+        <div class="loader-over">{@render loader()}</div>
       {/if}
+      </div>
     {:else}
       <p class="empty">Press <kbd>Enter</kbd> to load a passage.</p>
     {/if}
@@ -437,11 +441,32 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     padding: max(4vh, calc(var(--branch-h) - 30px)) 0 6vh;
     min-height: 0;
   }
+  .typing-wrap {
+    position: relative;
+  }
   .typing {
     transition: opacity 0.3s var(--ease-out);
   }
+  .loader-over {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: start center;
+    /* roughly the middle of the text block, above the panel space */
+    padding-top: 120px;
+    pointer-events: none;
+  }
+  .loader-over :global(.loader) {
+    margin-top: 0;
+    padding: 14px 22px;
+    border-radius: 4px;
+    background: var(--paper);
+    /* feathered paper backdrop so the dimmed text doesn't show through */
+    box-shadow: 0 0 36px 30px var(--paper);
+    pointer-events: auto;
+  }
   .typing.dim {
-    opacity: 0.25;
+    opacity: 0.15;
   }
   .empty {
     color: var(--muted);

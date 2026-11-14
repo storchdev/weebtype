@@ -8,7 +8,6 @@ export function requestFor(s: Settings): GenerateRequest {
     level: s.level,
     length: s.length,
     topic: s.topic,
-    dict: s.hint === "full",
   };
 }
 

@@ -40,7 +40,6 @@ function parseRequest(body: unknown): GenerateRequest | string {
     level,
     length: Math.round(length),
     topic: typeof b.topic === "string" ? b.topic.slice(0, 200) : "",
-    dict: b.dict !== false,
   };
 }
 

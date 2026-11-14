@@ -111,6 +111,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Fixed: switching hint mode reloaded the passage (the request carried an unused `dict` flag, so it changed the generation key). Passages always carry dictionary entries; hint is display-only. Loader for a replacement passage now overlays the dimmed text instead of sitting below the panel space (was pushed off-screen).
+
 - 2026-11-14 — Dictionary panel text enlarged: reading 14px, definitions 16px, other senses 14px, example 15px / translation 14px, deinflection 13px (headword unchanged).
 
 - 2026-11-14 — Results stats use the history page's unit style (number + small muted unit): 100.0 %, 2217 打/分, 4.5 秒 / 1分05秒; chart axis in 秒.
