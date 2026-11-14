@@ -1,7 +1,7 @@
 # weebtype 和文タイピング
 
-A local Japanese typing test. It gives you real sentences (written fresh by `claude -p` or
-`codex exec` on your machine) and you type them in romaji on a normal US keyboard. No
+A local Japanese typing test. It gives you real sentences (written fresh by `claude -p`,
+`codex exec` or a local model through `llama-server` on your machine) and you type them in romaji on a normal US keyboard. No
 IME and no space bar: each kana or kanji group converts as soon as you finish typing it.
 A small guide under the current word always shows how to type it. Turn on the full hint
 and a dictionary card (meaning, pitch accent and an example) also follows the word.
@@ -22,6 +22,13 @@ On the first run, `bun start` (and `bun dev`) downloads Jitendex (~40 MB) and th
 pitch-accent list and builds `data/` (~60 MB, takes a few seconds). After that it is skipped.
 Run `bun run data:setup --force` to update to the latest Jitendex, or pass
 `--jitendex file.zip` / `--pitch accents.txt` to use files you already downloaded.
+
+To use a local model instead, start [llama.cpp](https://github.com/ggml-org/llama.cpp)'s server
+(e.g. `llama-server -m model.gguf --port 8080`), pick **llama** under Settings → Generator and
+set its URL there (or `WEEBTYPE_LLAMA_URL`). A model that handles Japanese well (Qwen, Gemma…)
+works best; passages with too many wrong readings are rejected and retried.
+
+Passages generated in advance but never typed are kept in `data/cache/` and used first next time.
 
 Use `bun dev` for development (Vite on 5173 with hot reload, API on 6494).
 `bun run check`, `bun test` and `bun run lint` must pass before you commit. See

@@ -247,7 +247,6 @@ export class Variety {
       : [`Subject: ${d.subject}.`];
     lines.push(
       `Write it as ${d.form}${d.form.includes("third person") || d.form.includes("news") || d.form.includes("notice") ? "" : `, from the point of view of ${d.narrator}`}; tone: ${d.tone}.`,
-      "Use specific names, places, objects and details rather than generic statements.",
     );
     if (this.recentSubjects.length || this.openings.length) {
       lines.push(

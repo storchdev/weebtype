@@ -166,8 +166,19 @@ function onKey(e: KeyboardEvent): void {
   }
 }
 
+// Re-check backends whenever settings open (llama-server may have been started since),
+// and live while the llama URL is edited; only the latest answer counts.
+let healthSeq = 0;
+$effect(() => {
+  if (!settingsOpen) return;
+  const seq = ++healthSeq;
+  void fetchHealth(settings.llamaUrl).then((h) => {
+    if (seq === healthSeq && h) health = h;
+  });
+});
+
 onMount(() => {
-  void fetchHealth().then((h) => (health = h));
+  void fetchHealth(settings.llamaUrl).then((h) => (health = h));
   void loadPassage();
 });
 

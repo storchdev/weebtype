@@ -3,7 +3,7 @@
 export const LEVELS = ["N5", "N4", "N3", "N2", "N1", "native"] as const;
 export type Level = (typeof LEVELS)[number];
 
-export type Backend = "claude" | "codex";
+export type Backend = "claude" | "codex" | "llama";
 export type PassageSource = Backend | "tatoeba" | "builtin";
 
 /** A run of text plus the kana the user types to produce it, e.g. {t:"食", r:"た"}. */
@@ -52,6 +52,8 @@ export interface Passage {
 export interface GenerateRequest {
   backend: Backend;
   model: string;
+  /** llama-server base URL (backend "llama" only; empty = server default). */
+  endpoint?: string;
   level: Level;
   /** Approximate number of kana to type. */
   length: number;

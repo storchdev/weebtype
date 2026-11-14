@@ -6,6 +6,7 @@ export function requestFor(s: Settings): GenerateRequest {
     // the Tatoeba-only mode never sends a generate request; the field just needs a value
     backend: s.backend === "tatoeba" ? "claude" : s.backend,
     model: currentModel(s),
+    ...(s.backend === "llama" && s.llamaUrl.trim() ? { endpoint: s.llamaUrl.trim() } : {}),
     level: s.level,
     length: s.length,
     topic: s.topic,
@@ -35,9 +36,11 @@ export function prefetch(req: GenerateRequest): void {
   post("/api/prefetch", req).catch(() => {});
 }
 
-export async function fetchHealth(): Promise<HealthResponse | null> {
+/** `llamaUrl`: the llama-server to check (the server's default when empty). */
+export async function fetchHealth(llamaUrl = ""): Promise<HealthResponse | null> {
   try {
-    const res = await fetch("/api/health");
+    const q = llamaUrl.trim() ? `?llama=${encodeURIComponent(llamaUrl.trim())}` : "";
+    const res = await fetch(`/api/health${q}`);
     return res.ok ? ((await res.json()) as HealthResponse) : null;
   } catch {
     return null;

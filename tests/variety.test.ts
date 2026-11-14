@@ -31,11 +31,21 @@ test("prompt carries the direction and recent passages", () => {
   expect(v.promptLines(d1, "").join("\n")).not.toContain("Recent passages");
   v.record(d1, "駅で傘をなくした。困った。");
   const d2 = v.next();
-  const p = buildPrompt("N4", 100, v.promptLines(d2, ""));
+  const p = buildPrompt("N4", 100, v.promptLines(d2, "")).user;
   expect(p).toContain(`Subject: ${d2.subject}`);
   expect(p).toContain(`subject: ${d1.subject}`);
   expect(p).toContain("opened with: 駅で傘をなくした。");
   expect(p).not.toContain("seed");
+});
+
+test("system prompt is identical across requests (cacheable prefix)", () => {
+  const v = new Variety();
+  const a = buildPrompt("N5", 50, v.promptLines(v.next(), ""));
+  const b = buildPrompt("N1", 400, v.promptLines(v.next(), "料理"));
+  expect(a.system).toBe(b.system);
+  expect(a.system).not.toContain("N5");
+  expect(a.user).toContain("N5");
+  expect(b.user).toContain("400");
 });
 
 test("user topic is kept and given an angle", () => {

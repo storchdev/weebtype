@@ -1,4 +1,4 @@
-// Passage generation through local `claude -p` or `codex exec`.
+// Passage generation through local `claude -p`, `codex exec`, or a llama-server endpoint.
 
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -61,28 +61,43 @@ const LEVEL_DESC: Record<Level, string> = {
     "native level: literary or editorial prose with rich vocabulary, uncommon kanji compounds and idioms",
 };
 
+/**
+ * Fixed instructions, identical for every request so they form a cacheable prefix
+ * (Claude prompt cache, OpenAI prefix cache, llama-server KV reuse). Everything that
+ * varies per passage goes in `buildPrompt`'s user part, after this.
+ */
+export const SYSTEM_PROMPT = [
+  "You write practice passages for a Japanese typing test.",
+  "Write natural, interesting Japanese prose at the requested level and length (length = kana when read aloud, ±20%).",
+  "Write one cohesive passage, not a collection of unrelated practice sentences. If there are multiple sentences, each must build on the previous one.",
+  "Keep the same characters, setting, point of view and tense throughout. Develop one scene, short story or connected idea with a clear progression and a natural ending within the requested length.",
+  "Use specific names, places, objects and details rather than generic statements.",
+  "Avoid stock openings like 今日は, 私は…です or talk about the weather unless the subject is about it.",
+  "Use complete sentences ending in 。, ！ or ？. Use 、 normally. You may use 「」 for quotes.",
+  "Do NOT use: Latin letters, Arabic digits (write numbers in kanji), spaces, emoji, or symbols other than 、。！？「」ー.",
+  "",
+  "Output format: JSON only. Split the passage into tokens (words, as a morphological analyzer would: particles and auxiliaries separate,",
+  "but keep conjugated verb endings like 食べました together). Each token has ruby groups `groups`: a list of {t, r} where t is",
+  "a piece of the written text and r is its reading in hiragana (katakana words: r = the katakana itself).",
+  "Split groups as finely as possible: one group per kanji when its reading is separable (日本 → 日/に, 本/ほん),",
+  "okurigana as separate groups (食べる → 食/た, べる/べる), and keep jukujikun/ateji together (今日/きょう, 大人/おとな).",
+  "Punctuation is its own token with t = r = the mark. Concatenating every t must reproduce the passage exactly.",
+  "Readings must be correct for the context (e.g. 一日 as ついたち vs いちにち). `translations` has one natural English translation per Japanese sentence, in the same order (a quoted 「…。」 belongs to the sentence around it).",
+  "`names` lists every proper noun you used (people, places, shops, pets…) exactly as its token is written (w = 健太) with a short",
+  'English gloss (en = "Kenta (male given name)"); split a full name into one entry per token (山田 and 健太). Empty if none.',
+].join("\n");
+
+export interface Prompt {
+  system: string;
+  user: string;
+}
+
 /** `steer` are the subject/form/variety lines from `Variety.promptLines`. */
-export function buildPrompt(level: Level, length: number, steer: string[]): string {
-  return [
-    "You write practice passages for a Japanese typing test.",
-    `Write natural, interesting Japanese prose of roughly ${length} kana when read aloud (±20%), at ${LEVEL_DESC[level]}.`,
-    ...steer,
-    "Write one cohesive passage, not a collection of unrelated practice sentences. If there are multiple sentences, each must build on the previous one.",
-    "Keep the same characters, setting, point of view and tense throughout. Develop one scene, short story or connected idea with a clear progression and a natural ending within the requested length.",
-    "Avoid stock openings like 今日は, 私は…です or talk about the weather unless the subject is about it.",
-    "Use complete sentences ending in 。, ！ or ？. Use 、 normally. You may use 「」 for quotes.",
-    "Do NOT use: Latin letters, Arabic digits (write numbers in kanji), spaces, emoji, or symbols other than 、。！？「」ー.",
-    "",
-    "Output format: split the passage into tokens (words, as a morphological analyzer would: particles and auxiliaries separate,",
-    "but keep conjugated verb endings like 食べました together). Each token has ruby groups `groups`: a list of {t, r} where t is",
-    "a piece of the written text and r is its reading in hiragana (katakana words: r = the katakana itself).",
-    "Split groups as finely as possible: one group per kanji when its reading is separable (日本 → 日/に, 本/ほん),",
-    "okurigana as separate groups (食べる → 食/た, べる/べる), and keep jukujikun/ateji together (今日/きょう, 大人/おとな).",
-    "Punctuation is its own token with t = r = the mark. Concatenating every t must reproduce the passage exactly.",
-    "Readings must be correct for the context (e.g. 一日 as ついたち vs いちにち). `translations` has one natural English translation per Japanese sentence, in the same order (a quoted 「…。」 belongs to the sentence around it).",
-    "`names` lists every proper noun you used (people, places, shops, pets…) exactly as its token is written (w = 健太) with a short",
-    'English gloss (en = "Kenta (male given name)"); split a full name into one entry per token (山田 and 健太). Empty if none.',
-  ].join("\n");
+export function buildPrompt(level: Level, length: number, steer: string[]): Prompt {
+  return {
+    system: SYSTEM_PROMPT,
+    user: [`Level: ${LEVEL_DESC[level]}.`, `Length: roughly ${length} kana.`, ...steer].join("\n"),
+  };
 }
 
 export class LlmError extends Error {}
@@ -102,16 +117,69 @@ async function run(cmd: string[], cwd: string, timeoutMs: number): Promise<strin
   return out;
 }
 
-export function backendAvailable(b: Backend): boolean {
-  return Bun.which(b) !== null;
+/** llama-server base URL used when the request doesn't name one. */
+export const DEFAULT_LLAMA_URL = (process.env.WEEBTYPE_LLAMA_URL ?? "http://127.0.0.1:8080").replace(
+  /\/+$/,
+  "",
+);
+
+/** CLI backends: is the binary on PATH. llama: does the server answer `/health`. */
+export async function backendAvailable(b: Backend, endpoint = DEFAULT_LLAMA_URL): Promise<boolean> {
+  if (b !== "llama") return Bun.which(b) !== null;
+  try {
+    const res = await fetch(`${endpoint}/health`, { signal: AbortSignal.timeout(1500) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** llama-server's OpenAI-compatible endpoint, schema-constrained via a grammar. */
+async function generateLlama(
+  endpoint: string,
+  model: string,
+  prompt: Prompt,
+  timeoutMs: number,
+): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(`${endpoint}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({
+        ...(model.trim() ? { model: model.trim() } : {}),
+        messages: [
+          { role: "system", content: prompt.system },
+          { role: "user", content: prompt.user },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "passage", strict: true, schema: PASSAGE_SCHEMA },
+        },
+        // Reuse the KV cache for the shared system-prompt prefix.
+        cache_prompt: true,
+        temperature: 0.8,
+      }),
+    });
+  } catch (e) {
+    throw new LlmError(
+      `llama-server at ${endpoint} unreachable: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+  if (!res.ok) throw new LlmError(`llama-server ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return body.choices?.[0]?.message?.content ?? "";
 }
 
 export async function generate(
   backend: Backend,
   model: string,
-  prompt: string,
-  timeoutMs = 180_000,
+  prompt: Prompt,
+  endpoint = DEFAULT_LLAMA_URL,
+  timeoutMs = backend === "llama" ? 600_000 : 180_000,
 ): Promise<LlmPassage> {
+  if (backend === "llama") return parse(backend, await generateLlama(endpoint, model, prompt, timeoutMs));
   // Run from an empty temp dir so neither CLI picks up project instructions.
   const dir = await mkdtemp(join(tmpdir(), "weebtype-"));
   try {
@@ -120,13 +188,19 @@ export async function generate(
       const cmd = [
         "claude",
         "-p",
-        prompt,
+        prompt.user,
+        // Replaces Claude Code's own (large) system prompt: far fewer input tokens, and the
+        // fixed instructions become a stable cached prefix.
+        "--system-prompt",
+        prompt.system,
         "--output-format",
         "json",
         "--json-schema",
         JSON.stringify(PASSAGE_SCHEMA),
         "--tools",
         "",
+        // No MCP servers (their tool definitions would be sent with every request).
+        "--strict-mcp-config",
         "--no-session-persistence",
         "--setting-sources",
         "",
@@ -154,16 +228,21 @@ export async function generate(
         "read-only",
       ];
       if (model.trim()) cmd.push("-m", model.trim());
-      cmd.push(prompt);
+      // Fixed part first so OpenAI's automatic prefix cache can reuse it.
+      cmd.push(`${prompt.system}\n\n${prompt.user}`);
       await run(cmd, dir, timeoutMs);
       text = await Bun.file(outPath).text();
     }
-    try {
-      return JSON.parse(text) as LlmPassage;
-    } catch {
-      throw new LlmError(`${backend} returned non-JSON output: ${text.slice(0, 200)}`);
-    }
+    return parse(backend, text);
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+}
+
+function parse(backend: Backend, text: string): LlmPassage {
+  try {
+    return JSON.parse(text) as LlmPassage;
+  } catch {
+    throw new LlmError(`${backend} returned non-JSON output: ${text.slice(0, 200)}`);
   }
 }

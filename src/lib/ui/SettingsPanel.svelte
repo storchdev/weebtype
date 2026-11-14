@@ -1,6 +1,6 @@
 <script lang="ts">
 import { noteName } from "../core/accent.ts";
-import { LEVELS } from "../core/types.ts";
+import { type Backend, LEVELS } from "../core/types.ts";
 import { FONTS } from "../fonts.ts";
 import { playKey } from "../keysound.ts";
 import { FONT_SIZE_RANGE, LENGTH_PRESETS, saveSettings, settings } from "../settings.svelte.ts";
@@ -15,7 +15,7 @@ function previewVoice(): void {
 interface Props {
   open: boolean;
   onclose: () => void;
-  backends: { claude: boolean; codex: boolean } | null;
+  backends: Record<Backend, boolean> | null;
   /** Whether offline sentences exist (needs `data:setup`); null = unknown. */
   tatoeba: boolean | null;
 }
@@ -51,10 +51,10 @@ $effect(() => {
     <div class="field">
       <span class="label">Generator</span>
       <div class="seg">
-        {#each ["claude", "codex"] as const as b}
+        {#each ["claude", "codex", "llama"] as const as b}
           <button class="tbtn" class:on={settings.backend === b} onclick={() => (settings.backend = b)}>
             {b}
-            {#if backends && !backends[b]}<em>missing</em>{/if}
+            {#if backends && !backends[b]}<em>{b === "llama" ? "offline" : "missing"}</em>{/if}
           </button>
         {/each}
         <button class="tbtn" class:on={settings.backend === "tatoeba"} onclick={() => (settings.backend = "tatoeba")}>
@@ -68,10 +68,18 @@ $effect(() => {
       <span class="label">Model</span>
       {#if settings.backend === "claude"}
         <input bind:value={settings.claudeModel} placeholder="default (e.g. sonnet, haiku)" />
+      {:else if settings.backend === "llama"}
+        <input bind:value={settings.llamaModel} placeholder="optional (llama-server uses its loaded model)" />
       {:else}
         <input bind:value={settings.codexModel} placeholder="default" />
       {/if}
     </label>
+    {#if settings.backend === "llama"}
+      <label class="field">
+        <span class="label">Server <small>llama-server</small></span>
+        <input bind:value={settings.llamaUrl} placeholder="http://127.0.0.1:8080" />
+      </label>
+    {/if}
     {/if}
     <div class="field">
       <span class="label">Vocabulary</span>

@@ -1,10 +1,12 @@
-// Passage service: LLM generation, validation, dictionary annotation, prefetch queue,
-// and offline fallback.
+// Passage service: LLM generation, validation, dictionary annotation, prefetch queue
+// (persisted to disk so unused passages survive restarts), and offline fallback.
 
+import { mkdir, rename } from "node:fs/promises";
+import { dirname } from "node:path";
 import { isKana, isKanji, isPunct } from "../src/lib/core/kana.ts";
 import type { GenerateRequest, Passage, PassageResponse, Token } from "../src/lib/core/types.ts";
 import type { Dictionary } from "./dictionary.ts";
-import { buildPrompt, generate } from "./llm.ts";
+import { buildPrompt, DEFAULT_LLAMA_URL, generate } from "./llm.ts";
 import { nameEntry, normalizeTokens, type ProperName, translationFor, trimToLength } from "./normalize.ts";
 import { BUILTIN, type Tatoeba } from "./tatoeba.ts";
 import { Variety } from "./variety.ts";
@@ -15,9 +17,23 @@ interface Pending {
 }
 
 const PREFETCH = 1;
+/** Ready passages kept per settings key (normally ≤ PREFETCH; guards against races). */
+const MAX_READY = 5;
+const CACHE_VERSION = 1;
+
+export function endpointFor(r: GenerateRequest): string {
+  return (r.endpoint?.trim() || DEFAULT_LLAMA_URL).replace(/\/+$/, "");
+}
 
 function key(r: GenerateRequest): string {
-  return JSON.stringify([r.backend, r.model.trim(), r.level, r.length, r.topic.trim()]);
+  const base = [r.backend, r.model.trim(), r.level, r.length, r.topic.trim()];
+  return JSON.stringify(r.backend === "llama" ? [...base, endpointFor(r)] : base);
+}
+
+function isPassage(v: unknown): v is Passage {
+  if (typeof v !== "object" || v === null) return false;
+  const p = v as Partial<Passage>;
+  return typeof p.id === "string" && Array.isArray(p.tokens) && p.tokens.length > 0;
 }
 
 export class PassageService {
@@ -26,6 +42,55 @@ export class PassageService {
   dict: Dictionary | null = null;
   tatoeba: Tatoeba | null = null;
   readonly variety = new Variety();
+  private saving: Promise<void> = Promise.resolve();
+
+  /** `cacheFile`: where generated-but-unused passages are kept across restarts (none in tests). */
+  constructor(private readonly cacheFile?: string) {}
+
+  /** Load passages generated in earlier runs that were never served. */
+  async loadCache(): Promise<number> {
+    if (!this.cacheFile) return 0;
+    const f = Bun.file(this.cacheFile);
+    if (!(await f.exists())) return 0;
+    let n = 0;
+    try {
+      const raw = (await f.json()) as { v?: unknown; ready?: unknown };
+      if (raw.v !== CACHE_VERSION || typeof raw.ready !== "object" || raw.ready === null) return 0;
+      for (const [k, list] of Object.entries(raw.ready as Record<string, unknown>)) {
+        if (!Array.isArray(list)) continue;
+        const ok = list.filter(isPassage).slice(-MAX_READY);
+        if (!ok.length) continue;
+        this.ready.set(k, [...ok, ...(this.ready.get(k) ?? [])]);
+        n += ok.length;
+      }
+    } catch (e) {
+      console.warn(`[passages] ignoring unreadable cache ${this.cacheFile}: ${String(e)}`);
+    }
+    return n;
+  }
+
+  /** Write the ready queues to disk (serialised; atomic rename). */
+  private persist(): void {
+    const file = this.cacheFile;
+    if (!file) return;
+    this.saving = this.saving.then(async () => {
+      const ready: Record<string, Passage[]> = {};
+      for (const [k, list] of this.ready) if (list.length) ready[k] = list;
+      try {
+        await mkdir(dirname(file), { recursive: true });
+        const tmp = `${file}.tmp`;
+        await Bun.write(tmp, JSON.stringify({ v: CACHE_VERSION, ready }));
+        await rename(tmp, file);
+      } catch (e) {
+        console.warn(`[passages] couldn't save cache: ${String(e)}`);
+      }
+    });
+  }
+
+  /** Resolves once pending cache writes are on disk. */
+  flush(): Promise<void> {
+    return this.saving;
+  }
 
   /** `names`: proper nouns the LLM reported, used where the dictionary has no entry. */
   annotate(tokens: Token[], names: readonly ProperName[] = []): Token[] {
@@ -73,7 +138,7 @@ export class PassageService {
       // A fresh direction per attempt; parallel prefetches each draw a different one.
       const direction = this.variety.next();
       const prompt = buildPrompt(req.level, req.length, this.variety.promptLines(direction, req.topic));
-      const raw = await generate(req.backend, req.model, prompt);
+      const raw = await generate(req.backend, req.model, prompt, endpointFor(req));
       const norm = normalizeTokens(raw.tokens ?? [], this.dict);
       const allowed = Math.max(2, Math.floor(norm.tokens.length * 0.08));
       if (norm.tokens.length < 3) {
@@ -120,7 +185,8 @@ export class PassageService {
         if (!p.claimed) {
           const q = this.ready.get(k) ?? [];
           q.push(passage);
-          this.ready.set(k, q);
+          this.ready.set(k, q.slice(-MAX_READY));
+          this.persist();
         }
       },
       (err: unknown) => {
@@ -148,6 +214,7 @@ export class PassageService {
     const q = this.ready.get(k);
     const ready = q?.shift();
     if (ready) {
+      this.persist();
       this.prefetch(req);
       return { passage: ready };
     }
@@ -165,7 +232,6 @@ export class PassageService {
     }
   }
 
-  /** Clear the queue for a request (e.g. when the user wants something fresh). */
   status(req: GenerateRequest): { ready: number; pending: number } {
     const k = key(req);
     return { ready: this.ready.get(k)?.length ?? 0, pending: this.pending.get(k)?.length ?? 0 };

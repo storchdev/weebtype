@@ -56,7 +56,7 @@ the script and look at them before committing.
 ## Layout
 
 ```
-server/            Bun.serve API (main.ts), LLM backends (llm.ts), passages + prefetch, variety,
+server/            Bun.serve API (main.ts), LLM backends (llm.ts: claude/codex/llama-server), passages + prefetch (+ disk cache), variety,
                    normalisation, dictionary + vendored deinflect, Tatoeba fallback
 src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
 src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
@@ -68,7 +68,7 @@ scripts/           dev runner, data setup (download + pure converters in build-d
 tests/             bun tests for the core modules
 public/sounds/     CC0 keyboard clicks (credited in README)
 data/voice/        optional user-installed UTAU voicebank for the singer (never committed)
-data/              dictionary/pitch/examples JSON (gitignored, built by data:setup)
+data/              dictionary/pitch/examples JSON (gitignored, built by data:setup); data/cache/ unused passages
 ```
 
 ## Conventions & gotchas
@@ -92,7 +92,13 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
 - Passage variety comes from `server/variety.ts` (directions + recent-passage list in the prompt).
   Don't reintroduce a numeric "seed" in prompts — models ignore it.
 - LLM CLIs run from an empty temp dir (so they don't read project instructions) with
-  `--tools "" --setting-sources "" --no-session-persistence` (claude) / `-s read-only --ephemeral` (codex).
+  `--system-prompt … --tools "" --strict-mcp-config --setting-sources "" --no-session-persistence` (claude) /
+  `-s read-only --ephemeral` (codex). The `llama` backend POSTs to llama-server's `/v1/chat/completions`
+  (URL from the request's `endpoint`, else `WEEBTYPE_LLAMA_URL`, else `http://127.0.0.1:8080`).
+- Prompts are `{system, user}` (`buildPrompt`): `SYSTEM_PROMPT` must stay byte-identical across requests
+  (it is the cached prefix) — put anything per-request (level, length, variety, recents) in `user`.
+- Unserved ready passages persist to `data/cache/passages.json` (`PassageService(cacheFile)`; tests pass
+  none). Bump `CACHE_VERSION` in `server/passages.ts` if the `Passage` shape changes incompatibly.
 - Don't `pkill -f "bun server/main.ts"` from an agent shell — the pattern matches the shell itself.
 - `data/` is built only from public sources (Jitendex Yomitan zip, Kanjium `accents.txt`) by
   `scripts/setup-data.ts`; never make setup depend on a local path. Formats are documented in

@@ -14,6 +14,10 @@ export interface Settings {
   backend: Generator;
   claudeModel: string;
   codexModel: string;
+  /** Model name passed to llama-server (usually ignored: it serves what it loaded). */
+  llamaModel: string;
+  /** llama-server base URL. */
+  llamaUrl: string;
   level: Level;
   length: number;
   topic: string;
@@ -40,6 +44,8 @@ export const DEFAULTS: Settings = {
   backend: "claude",
   claudeModel: "sonnet",
   codexModel: "",
+  llamaModel: "",
+  llamaUrl: "http://127.0.0.1:8080",
   level: "N4",
   length: 100,
   topic: "",
@@ -74,9 +80,11 @@ function sanitize(raw: unknown): Settings {
   };
   const str = (v: unknown, d: string) => (typeof v === "string" ? v : d);
   return {
-    backend: oneOf(r.backend, ["claude", "codex", "tatoeba"] as const, DEFAULTS.backend),
+    backend: oneOf(r.backend, ["claude", "codex", "llama", "tatoeba"] as const, DEFAULTS.backend),
     claudeModel: str(r.claudeModel, DEFAULTS.claudeModel),
     codexModel: str(r.codexModel, DEFAULTS.codexModel),
+    llamaModel: str(r.llamaModel, DEFAULTS.llamaModel),
+    llamaUrl: str(r.llamaUrl, DEFAULTS.llamaUrl),
     level: oneOf(r.level, LEVELS, DEFAULTS.level),
     length: num(r.length, 20, 1000, DEFAULTS.length),
     topic: str(r.topic, ""),
@@ -124,5 +132,7 @@ export function offlineOnly(s: Settings): boolean {
 }
 
 export function currentModel(s: Settings): string {
-  return s.backend === "claude" ? s.claudeModel : s.codexModel;
+  if (s.backend === "claude") return s.claudeModel;
+  if (s.backend === "llama") return s.llamaModel;
+  return s.codexModel;
 }
