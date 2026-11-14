@@ -67,24 +67,24 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 ### M1 — Typing core (no LLM yet, hardcoded passage)
 
 - [x] Romaji engine: kana → candidate romaji trie, accepts all variants, `n` ambiguity, っ, small kana, punctuation (pure TS, heavily tested)
-- [ ] Session state machine: tokens → groups → kana, per-key accept/reject, caret position, per-group completion
+- [x] Session state machine: tokens → groups → kana, per-key accept/reject, caret position, per-group completion
 - [ ] Paragraph view with per-group auto-conversion + caret composition (typed kana + pending romaji)
 - [ ] IME-on detection banner
 - [ ] Results screen: KPM, keys/min, accuracy, time, misses
 
 ### M2 — LLM generation
 
-- [ ] Prompt + JSON schema; `claude -p` and `codex exec` backends with timeout + error reporting
-- [ ] Server-side normalisation (katakana/hiragana readings, punctuation tokens, length trimming)
-- [ ] Prefetch queue keyed by (backend, model, level, length, topic)
+- [x] Prompt + JSON schema; `claude -p` and `codex exec` backends with timeout + error reporting
+- [x] Server-side normalisation (katakana/hiragana readings, punctuation tokens, length trimming)
+- [x] Prefetch queue keyed by (backend, model, level, length, topic)
 - [ ] Settings UI: backend, model, level, length, topic
 
 ### M3 — Dictionary + hints
 
-- [ ] `data:import` script; compact server-side index; TS port of Yomitan deinflector (GPLv3 header kept)
-- [ ] Validate LLM readings against dictionary; repair/retry
+- [x] `data:import` script; compact server-side index; TS port of Yomitan deinflector (GPLv3 header kept)
+- [x] Validate LLM readings against dictionary; repair/retry
 - [ ] Hint card (full / romaji / off), anchored under current word, smooth follow
-- [ ] Tatoeba fallback passages
+- [x] Tatoeba fallback passages
 
 ### M4 — Look & feel
 
@@ -108,5 +108,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - Furigana-over-kanji toggle on the target text for beginners?
 
 ## Log
+
+- 2026-11-14 — Server done: claude/codex structured output, okurigana splitting, dictionary validation (all deinflection candidates, e.g. 行った → 行く+行う), prefetch queue, Tatoeba fallback (~21k sentences). Dictionary uses ~400 MB RSS and ~0.6 s to load.
 
 - 2026-11-13 — Project kicked off; decisions table settled with the user.

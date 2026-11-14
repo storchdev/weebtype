@@ -69,6 +69,10 @@ data/          Jitendex JSON (gitignored, imported)
   except once per group change. Respect `prefers-reduced-motion`.
 - All colours come from CSS custom properties defined per theme — no hard-coded colours
   in components or SVGs (use `currentColor` / `var(--…)`).
-- `src/…/deinflect` is vendored from Yomitan (GPLv3): keep its license header.
+- `server/vendor/deinflect.js` is vendored from Yomitan (GPLv3) as plain JS with a hand-written
+  `deinflect.d.ts` (only the API we use). Keep its license header; don't type-check the JS.
+- LLM CLIs run from an empty temp dir (so they don't read project instructions) with
+  `--tools "" --setting-sources "" --no-session-persistence` (claude) / `-s read-only --ephemeral` (codex).
+- Don't `pkill -f "bun server/main.ts"` from an agent shell — the pattern matches the shell itself.
 - The reference implementation for the dictionary hint lives at
   `/home/hudson/Desktop/japanslop/10ff-yomitan` (content.js, deinflect.js).

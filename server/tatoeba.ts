@@ -1,0 +1,132 @@
+// Offline fallback passages built from the Tatoeba sentences embedded in Jitendex
+// (examples.json): each sentence is already split into furigana segments.
+
+import { isKana, isKatakana, isPunct, normalizePunct, toHiragana } from "../src/lib/core/kana.ts";
+import type { Level, Passage, Token } from "../src/lib/core/types.ts";
+import type { RawExamples } from "./dictionary.ts";
+import { countKana } from "./normalize.ts";
+
+interface Sentence {
+  tokens: Token[];
+  kana: number;
+  translation: string;
+}
+
+/** Convert example segments to tokens; returns null if something isn't typeable. */
+function toTokens(segs: Array<{ t: string; r?: string }>): Token[] | null {
+  const tokens: Token[] = [];
+  let kanaRun = "";
+  const flush = () => {
+    if (kanaRun) tokens.push({ groups: [{ t: kanaRun, r: kanaRun }] });
+    kanaRun = "";
+  };
+  for (const s of segs) {
+    if (s.r) {
+      flush();
+      if (![...s.r].every(isKana)) return null;
+      tokens.push({ groups: [{ t: s.t, r: toHiragana(s.r) }] });
+      continue;
+    }
+    for (const raw of s.t) {
+      const ch = normalizePunct(raw);
+      if (isPunct(ch)) {
+        flush();
+        tokens.push({ groups: [{ t: ch, r: ch }] });
+      } else if (isKana(ch)) {
+        // Split runs where the script changes (コーヒーは → コーヒー | は).
+        const last = kanaRun.slice(-1);
+        if (last && isKatakana(last) !== isKatakana(ch)) flush();
+        kanaRun += ch;
+      } else return null; // unread kanji, latin, digits, spaces...
+    }
+  }
+  flush();
+  return tokens;
+}
+
+export class Tatoeba {
+  private readonly sentences: Sentence[] = [];
+
+  constructor(examples: RawExamples) {
+    const seen = new Set<string>();
+    for (const term in examples) {
+      for (const { e } of examples[term] ?? []) {
+        for (const ex of e) {
+          if (seen.has(ex.t)) continue;
+          seen.add(ex.t);
+          const tokens = toTokens(ex.j);
+          if (!tokens || tokens.length < 3) continue;
+          const kana = countKana(tokens);
+          if (kana < 8 || kana > 80) continue;
+          this.sentences.push({ tokens, kana, translation: ex.t });
+        }
+      }
+    }
+  }
+
+  get size(): number {
+    return this.sentences.length;
+  }
+
+  passage(level: Level, length: number): Passage {
+    // Rough difficulty proxy: shorter sentences for lower levels.
+    const maxLen = { N5: 20, N4: 28, N3: 40, N2: 60, N1: 80, native: 80 }[level];
+    const pool = this.sentences.filter((s) => s.kana <= maxLen);
+    const tokens: Token[] = [];
+    const translations: string[] = [];
+    let kana = 0;
+    while (kana < length * 0.9 && pool.length > 0) {
+      const s = pool[Math.floor(Math.random() * pool.length)] as Sentence;
+      tokens.push(...s.tokens);
+      translations.push(s.translation);
+      kana += s.kana;
+    }
+    return {
+      id: crypto.randomUUID(),
+      source: "tatoeba",
+      level,
+      translation: translations.join(" "),
+      tokens,
+    };
+  }
+}
+
+export const BUILTIN: Passage = {
+  id: "builtin",
+  source: "builtin",
+  level: "N5",
+  translation: "This morning I ate bread at home. Then I went to school by train.",
+  tokens: [
+    { groups: [{ t: "今朝", r: "けさ" }] },
+    { groups: [{ t: "、", r: "、" }] },
+    { groups: [{ t: "家", r: "いえ" }] },
+    { groups: [{ t: "で", r: "で" }] },
+    { groups: [{ t: "パン", r: "パン" }] },
+    { groups: [{ t: "を", r: "を" }] },
+    {
+      groups: [
+        { t: "食", r: "た" },
+        { t: "べました", r: "べました" },
+      ],
+    },
+    { groups: [{ t: "。", r: "。" }] },
+    { groups: [{ t: "それから", r: "それから" }] },
+    { groups: [{ t: "、", r: "、" }] },
+    { groups: [{ t: "電車", r: "でんしゃ" }] },
+    { groups: [{ t: "で", r: "で" }] },
+    {
+      groups: [
+        { t: "学", r: "がっ" },
+        { t: "校", r: "こう" },
+      ],
+    },
+    { groups: [{ t: "へ", r: "へ" }] },
+    {
+      groups: [
+        { t: "行", r: "い" },
+        { t: "きました", r: "きました" },
+      ],
+    },
+    { groups: [{ t: "。", r: "。" }] },
+  ],
+};
