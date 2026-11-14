@@ -11,9 +11,11 @@ interface Props {
   /** x of the current word relative to the panel, for the marker. */
   markerX: number;
   tokenKey: number;
+  /** Phone layout: headword above the senses instead of beside them. */
+  narrow?: boolean;
 }
 
-let { entries, surface, markerX, tokenKey }: Props = $props();
+let { entries, surface, markerX, tokenKey, narrow = false }: Props = $props();
 
 const entry = $derived(entries?.[0]);
 
@@ -61,7 +63,7 @@ const others = $derived(
 );
 </script>
 
-<div class="panel">
+<div class="panel" class:narrow>
   <div class="rule">
     <div class="marker" style="transform: translate3d({Math.max(0, markerX)}px, 0, 0)"></div>
   </div>
@@ -171,6 +173,14 @@ const others = $derived(
       opacity: 0;
       transform: translate3d(0, 3px, 0);
     }
+  }
+  .narrow .body {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .narrow .head {
+    border-right: 0;
+    padding-right: 0;
   }
   .head {
     border-right: 1px solid var(--faint);

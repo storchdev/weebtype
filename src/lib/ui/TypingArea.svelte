@@ -22,6 +22,12 @@ interface Props {
   onkana?: (kana: string, done: number, total: number) => void;
   /** Every typing key, accepted or not (for key sounds). */
   onkey?: (ok: boolean) => void;
+  /** Main area's top padding (clear of the branch), px. */
+  reserveTop: number;
+  /** Space kept free under the panel (battle stage), px. */
+  reserveBottom: number;
+  /** Narrow (phone) layout: the dictionary panel stacks. */
+  narrow: boolean;
 }
 
 let {
@@ -37,6 +43,9 @@ let {
   onime,
   onkana,
   onkey,
+  reserveTop,
+  reserveBottom,
+  narrow,
 }: Props = $props();
 
 // A new TypingArea is mounted per run (parent wraps it in {#key}), so the
@@ -69,12 +78,10 @@ const LINE = 2.45; // line-height in em
 const linePitch = $derived(fontSize * LINE);
 // Paragraph lines shown at once: up to 5, fewer on short windows so the text, the
 // dictionary panel and the footer all fit below the branch without scrolling.
-let winW = $state(window.innerWidth);
 let winH = $state(window.innerHeight);
 const maxLines = $derived.by(() => {
-  const branchW = Math.min(Math.max(200, winW * 0.3), 440, winH * 0.44); // = --branch-w
-  const top = Math.max(winH * 0.04, branchW * 0.545 - 30) + 62 + 64; // header + meta
-  const below = (hint === "full" ? 200 : 40) + 56; // panel + footer
+  const top = reserveTop + 62 + 64; // header + meta
+  const below = (hint === "full" ? (narrow ? 250 : 200) : 40) + 56 + reserveBottom; // panel + footer + stage
   return Math.max(2, Math.min(5, Math.floor((winH - top - below) / linePitch)));
 });
 
@@ -173,8 +180,44 @@ function animate(el: Element | undefined, frames: Keyframe[], ms: number): void 
   el.animate(frames, { duration: ms, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
 }
 
+// Touch devices have no physical keyboard events: a hidden input opens the on-screen
+// keyboard and its text is fed through the same path as key presses.
+const touch = window.matchMedia("(pointer: coarse)").matches;
+let soft: HTMLInputElement | undefined = $state();
+let softFocused = $state(false);
+let consumed = 0;
+
+function focusSoft(): void {
+  if (touch && active) soft?.focus({ preventScroll: true });
+}
+
+function onSoftInput(e: Event): void {
+  if (!soft) return;
+  const v = soft.value;
+  const add = v.length > consumed ? v.slice(consumed) : "";
+  consumed = v.length;
+  for (const ch of add) {
+    if (!active || snap.finished) break;
+    if (KANA_KEY.test(ch)) {
+      onime(true);
+      continue;
+    }
+    if (ch === " " || ch === "\n") continue;
+    onime(false);
+    press(ch);
+  }
+  if (!(e as InputEvent).isComposing) resetSoft();
+}
+
+function resetSoft(): void {
+  if (soft) soft.value = "";
+  consumed = 0;
+}
+
 function onKey(e: KeyboardEvent): void {
   if (!active || snap.finished) return;
+  // typing into the hidden touch input arrives as input events; only Tab is handled here
+  if (soft && e.target === soft && e.key !== "Tab") return;
   if (e.isComposing || e.key === "Process" || e.keyCode === 229) {
     onime(true);
     return;
@@ -197,10 +240,13 @@ function onKey(e: KeyboardEvent): void {
   }
   e.preventDefault();
   onime(false);
+  press(e.key);
+}
 
+function press(key: string): void {
   const before = cur;
   const doneBefore = snap.kanaDone;
-  const ok = session.press(e.key, performance.now());
+  const ok = session.press(key, performance.now());
   onkey?.(ok);
   snap = session.snapshot();
   if (onkana && snap.kanaDone > doneBefore) {
@@ -250,9 +296,10 @@ const markerX = $derived(Math.max(0, Math.min(guideX, viewportW - 18)));
 const panelY = $derived(viewportH + guideSize * 1.4 + 22);
 </script>
 
-<svelte:window onkeydown={onKey} bind:innerWidth={winW} bind:innerHeight={winH} />
+<svelte:window onkeydown={onKey} bind:innerHeight={winH} />
 
-<div class="area" style="--font: {fontFamily(font)}; --size: {fontSize}px; --line: {LINE};">
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+<div class="area" class:narrow onclick={focusSoft} style="--font: {fontFamily(font)}; --size: {fontSize}px; --line: {LINE};">
   <div class="meta">
     <div class="live" class:show={snap.started}>
       <span><b>{Math.round(live.kpm)}</b> 字/分</span>
@@ -317,14 +364,51 @@ const panelY = $derived(viewportH + guideSize * 1.4 + 22);
       </div>
       {#if hint === "full"}
         <div class="panel-pos" style="transform: translate3d(0, {panelY}px, 0)">
-          <DictPanel entries={dictEntry} surface={hintSurface} {markerX} tokenKey={hintToken} />
+          <DictPanel entries={dictEntry} surface={hintSurface} {markerX} tokenKey={hintToken} {narrow} />
         </div>
       {/if}
     {/if}
   </div>
+  {#if touch}
+    <input
+      bind:this={soft}
+      class="soft"
+      type="text"
+      aria-label="Type romaji"
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck="false"
+      enterkeyhint="next"
+      oninput={onSoftInput}
+      oncompositionend={resetSoft}
+      onfocus={() => (softFocused = true)}
+      onblur={() => (softFocused = false)}
+    />
+    {#if !softFocused && !snap.finished}
+      <button class="pbtn tap" onclick={focusSoft}>tap to type</button>
+    {/if}
+  {/if}
 </div>
 
 <style>
+  /* the touch keyboard's target: present (so it can take focus) but invisible; 16px so
+     iOS doesn't zoom on focus */
+  .soft {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    font-size: 16px;
+    border: 0;
+    padding: 0;
+    pointer-events: none;
+  }
+  .tap {
+    display: block;
+    margin: 18px auto 0;
+  }
   .area {
     position: relative;
     width: 100%;

@@ -6,6 +6,7 @@ import type { HealthResponse, Passage } from "./lib/core/types.ts";
 import { fontFamily } from "./lib/fonts.ts";
 import { addHistory, type HistoryEntry, loadHistory } from "./lib/history.ts";
 import { playKey, preloadKeySounds } from "./lib/keysound.ts";
+import { branchHeight, branchWidth, isNarrow, mainTop, stageHeight } from "./lib/layout.ts";
 import { currentModel, offlineOnly, settings } from "./lib/settings.svelte.ts";
 import Battle from "./lib/ui/Battle.svelte";
 import HistoryPanel from "./lib/ui/HistoryPanel.svelte";
@@ -31,6 +32,28 @@ let result: { stats: Stats; session: TypingSession } | null = $state(null);
 let history: HistoryEntry[] = $state(loadHistory());
 let abort: AbortController | null = null;
 let battle: Battle | undefined = $state();
+
+// ---- page geometry (layout.ts), exposed as CSS variables on :root ----
+let winW = $state(window.innerWidth);
+let winH = $state(window.innerHeight);
+const battleOn = $derived.by(() => settings.battle && view !== "history");
+const narrow = $derived(isNarrow(winW));
+const branchW = $derived(branchWidth(winW, winH, battleOn));
+// results/history only need to clear the header: the branch hangs off to the side of them
+const topPad = $derived(view === "typing" ? mainTop(winH, branchW) : Math.max(16, winH * 0.04));
+// on the results screen the pair only celebrates: a smaller band leaves room for the stats
+const stageH = $derived(battleOn ? stageHeight(winW, winH) * (view === "typing" ? 1 : 0.62) : 0);
+$effect(() => {
+  const root = document.documentElement.style;
+  root.setProperty("--branch-w", `${branchW}px`);
+  root.setProperty("--branch-h", `${branchHeight(branchW)}px`);
+  root.setProperty("--main-top", `${topPad}px`);
+  root.setProperty("--stage-h", `${stageH}px`);
+  // the stage stands on the footer, which wraps to two lines on phones
+  root.setProperty("--stage-bottom", `${narrow ? 66 : 44}px`);
+});
+// phones: text no bigger than ~13 characters across
+const fontSize = $derived(Math.min(settings.fontSize, Math.max(20, Math.round((winW - 40) / 13))));
 
 // ---- theme ---------------------------------------------------------------
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -156,7 +179,7 @@ const sourceLabel = $derived.by(() => {
 const LEVEL_JA: Record<string, string> = { native: "母語" };
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} bind:innerWidth={winW} bind:innerHeight={winH} />
 
 <div class="grain" aria-hidden="true"></div>
 <div class="branch-wrap" aria-hidden="true"><PlumBranch /></div>
@@ -172,7 +195,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
   />
 {/if}
 
-<div class="shell">
+<div class="shell" class:battle={battleOn} class:narrow>
   <header class="top">
     <button
       class="brand"
@@ -227,7 +250,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     </div>
   {/if}
 
-  <main>
+  <main class:scroll={view !== "typing"}>
     {#if view === "history"}
       <HistoryPanel entries={history} onchange={(list) => (history = list)} />
     {:else if view === "results" && result}
@@ -248,7 +271,10 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
             hint={settings.hint}
             display={settings.display}
             font={settings.font}
-            fontSize={settings.fontSize}
+            {fontSize}
+            reserveTop={topPad}
+            reserveBottom={stageH ? stageH + 12 : 0}
+            {narrow}
             active={!settingsOpen && view === "typing" && !loading}
             onfinish={finish}
             onrestart={startRun}
@@ -275,9 +301,15 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
   </main>
 
   <footer>
-    <span><kbd>Tab</kbd> restart</span>
-    <span><kbd>⇧ Tab</kbd> new passage</span>
-    <span><kbd>Esc</kbd> settings</span>
+    {#if narrow}
+      <!-- phones have no Tab/Esc: the same actions as buttons -->
+      <button class="tbtn" onclick={startRun} disabled={!passage}>restart</button>
+      <button class="tbtn" onclick={() => void loadPassage()}>new passage</button>
+    {:else}
+      <span><kbd>Tab</kbd> restart</span>
+      <span><kbd>⇧ Tab</kbd> new passage</span>
+      <span><kbd>Esc</kbd> settings</span>
+    {/if}
     {#if health && !health.dictionary}
       <span class="warn">dictionary not loaded — run <code>bun run data:setup</code> for meanings</span>
     {/if}
@@ -328,8 +360,12 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
   }
   :global(:root) {
     /* shared by the branch and the main area's top padding */
+    /* set from layout.ts by App; these are only first-paint fallbacks. --stage-h is
+       the battle band along the bottom (singer, boss, flying kana) */
     --branch-w: min(clamp(200px, 30vw, 440px), 44vh);
     --branch-h: calc(var(--branch-w) * 0.545);
+    --main-top: max(4vh, calc(var(--branch-h) - 30px));
+    --stage-h: 0px;
   }
   .shell {
     position: relative;
@@ -466,8 +502,18 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     justify-content: safe center;
     /* the branch hangs over the top-right corner: start content below its lowest
        blossom so it can never overlap the text (header is ~62px tall) */
-    padding: max(4vh, calc(var(--branch-h) - 30px)) 0 6vh;
+    padding: var(--main-top) 0 6vh;
     min-height: 0;
+  }
+  /* results/history can be taller than the room left: scroll inside main, so they never
+     run under the battle stage or the footer */
+  main.scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .battle main {
+    margin-bottom: calc(var(--stage-h) + var(--stage-bottom) - 32px);
+    padding-bottom: 2vh;
   }
   .typing-wrap {
     position: relative;
@@ -581,5 +627,19 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
       opacity: 0;
       transform: translateY(8px);
     }
+  }
+  /* phones: tighter margins, one-line header, no level chip (it's in settings) */
+  .narrow {
+    padding: 14px 16px;
+  }
+  .narrow .chip,
+  .narrow .word small {
+    display: none;
+  }
+  .narrow nav {
+    white-space: nowrap;
+  }
+  .narrow footer {
+    gap: 4px 16px;
   }
 </style>

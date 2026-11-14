@@ -374,4 +374,26 @@ function timeParts(s: number): Array<[string, string]> {
       padding-left: 0;
     }
   }
+  /* short windows (laptops, battle stage below): tighten the vertical rhythm so the
+     actions stay on screen */
+  @media (max-height: 780px) {
+    .num {
+      font-size: 60px;
+    }
+    .figure {
+      margin-top: 18px;
+    }
+    .chart {
+      height: 56px;
+    }
+    .detail {
+      margin-top: 16px;
+    }
+    .passage {
+      line-height: 1.7;
+    }
+    .actions {
+      margin-top: 18px;
+    }
+  }
 </style>

@@ -157,8 +157,9 @@ function launch(kana: string, done: number): void {
   const x1 = target.x + (Math.random() - 0.5) * target.r;
   const y1 = target.y + (Math.random() - 0.5) * target.r;
   const dx = x1 - x0;
-  const arc = Math.min(260, Math.abs(dx) * 0.22) + Math.random() * 70;
-  const spin = (Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 360);
+  // a low, nearly level flight along the stage band: just a small lift or dip
+  const arc = (Math.random() - 0.35) * Math.min(36, Math.abs(dx) * 0.04);
+  const spin = (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 120);
   const frames: Keyframe[] = [];
   const N = 16;
   for (let i = 0; i <= N; i++) {
@@ -166,7 +167,7 @@ function launch(kana: string, done: number): void {
     const x = x0 + dx * t;
     const y = y0 + (y1 - y0) * t - arc * 4 * t * (1 - t);
     const s =
-      t < 0.12 ? 0.3 + (t / 0.12) * 1.0 : t > 0.9 ? 1.3 - ((t - 0.9) / 0.1) * 0.6 : 1.3 - (t - 0.12) * 0.35;
+      t < 0.12 ? 0.3 + (t / 0.12) * 0.8 : t > 0.9 ? 1.1 - ((t - 0.9) / 0.1) * 0.5 : 1.1 - (t - 0.12) * 0.2;
     frames.push({
       transform: `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) rotate(${spin * t}deg) scale(${s})`,
       opacity: t < 0.06 ? t / 0.06 : 1,
@@ -427,11 +428,12 @@ const remaining = $derived(Math.max(0, total - landed));
   }
 
   /* ---- singer ---- */
+  /* both stand in the stage band (--stage-h, App.svelte) at the column's edges */
   .singer {
     position: absolute;
-    left: 2.5vw;
-    bottom: 48px;
-    width: clamp(84px, 9vw, 128px);
+    left: max(10px, calc(50vw - 500px));
+    bottom: var(--stage-bottom, 44px);
+    width: calc(var(--stage-h) * 0.75);
   }
   .bob {
     animation: bob 2.4s ease-in-out infinite;
@@ -544,9 +546,9 @@ const remaining = $derived(Math.max(0, total - landed));
   /* ---- boss ---- */
   .boss {
     position: absolute;
-    right: 2.5vw;
-    bottom: 48px;
-    width: clamp(110px, 11vw, 168px);
+    right: max(10px, calc(50vw - 500px));
+    bottom: var(--stage-bottom, 44px);
+    width: calc(var(--stage-h) * 0.82);
   }
   .hpbox {
     margin-bottom: 6px;
@@ -664,7 +666,7 @@ const remaining = $derived(Math.max(0, total - landed));
     transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .boss.ko .hpbox {
-    opacity: 0.45;
+    opacity: 0;
   }
   .stamp {
     position: absolute;

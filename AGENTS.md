@@ -61,7 +61,8 @@ server/            Bun.serve API (main.ts), LLM backends (llm.ts), passages + pr
 src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
 src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
                    PlumBranch, Petals, Battle)
-src/lib/*.ts       settings (runes, localStorage), api client, history, fonts, singer (offline-rendered voice), keysound
+src/lib/*.ts       settings (runes, localStorage), api client, history, fonts, singer (offline-rendered voice), keysound,
+                   layout (page geometry: branch, stage band, narrow breakpoint)
 src/app.css        theme tokens (light/dark) + base styles
 scripts/           dev runner, data setup (download + pure converters in build-data.ts), screenshot
 tests/             bun tests for the core modules
@@ -113,3 +114,10 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   live Web Audio to `ctx.destination` — it was silent on the user's Chromium/PipeWire.
 - Typing text renders as one `.cell` per kana/punct char or kanji group, wrapped in nowrap
   `.word` spans (`buildWords`) so lines break only between words.
+- Page geometry lives in `src/lib/layout.ts`; App writes it to `:root` CSS vars (`--branch-w/h`,
+  `--main-top`, `--stage-h`, `--stage-bottom`) and passes `reserveTop`/`reserveBottom` to TypingArea's
+  line count. Don't hard-code those formulas in CSS or components again. The battle band is reserved
+  with `margin-bottom` on main (padding would let scrolled content run under the stage).
+- Touch devices (`pointer: coarse`) type through a hidden `<input class="soft">` in TypingArea;
+  its `input` events go through the same `press()` as window keydowns. Phones have no Tab/Esc,
+  so the narrow footer shows restart/new-passage buttons.
