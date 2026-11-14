@@ -38,25 +38,34 @@ current word. Full scope, decisions and progress: **[PLAN.md](PLAN.md)**. Read i
 
 ## Commands
 
-(Fill in / correct as the scaffold lands.)
+| Command                              | Does                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------ |
+| `bun install`                        | Install deps + git hooks                                                 |
+| `bun dev`                            | Vite (5173, proxies `/api`) + `bun --watch` API server (5174)            |
+| `bun start`                          | Build frontend, serve everything from Bun on 5174, open browser          |
+| `bun run serve`                      | Serve existing `dist/` + API without rebuilding                          |
+| `bun run check`                      | `tsc --noEmit` + `svelte-check --fail-on-warnings`                       |
+| `bun test`                           | Unit tests (`tests/`)                                                    |
+| `bun run lint` / `bun run format`    | Biome check / format                                                     |
+| `bun run data:import [dir]`          | Copy Jitendex data from a 10ff-yomitan-style dir into `data/`            |
+| `bun scripts/screenshot.ts out.png …` | Headless Chromium screenshot of a running server (see flags in the file: `--offline`, `--builtin`, `--theme`, `--display`, `--font`, `--type "keys"`, `--finish`, `--settings`) |
 
-| Command                     | Does                                                                  |
-| --------------------------- | --------------------------------------------------------------------- |
-| `bun install`               | Install deps + git hooks                                              |
-| `bun dev`                   | Vite dev server + Bun API server with reload                          |
-| `bun start`                 | Build frontend, serve everything from Bun, open browser               |
-| `bun run check`             | `tsc --noEmit` + `svelte-check`                                       |
-| `bun test`                  | Unit tests                                                            |
-| `bun run data:import <dir>` | Copy/compact Jitendex data from a 10ff-yomitan-style dir into `data/` |
+Visual changes: run the server (`bun run serve` after `vite build`), take screenshots with
+the script and look at them before committing.
 
-## Layout (planned — update when it changes)
+## Layout
 
 ```
-server/        Bun.serve API, LLM backends, prefetch queue, dictionary + deinflect
-src/lib/core/  framework-free TS: romaji engine, session, stats, types shared with server
-src/lib/ui/    Svelte components
-src/assets/    SVG decorations
-data/          Jitendex JSON (gitignored, imported)
+server/            Bun.serve API (main.ts), LLM backends (llm.ts), passages + prefetch,
+                   normalisation, dictionary + vendored deinflect, Tatoeba fallback
+src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
+src/lib/ui/        Svelte components (TypingArea, DictCard, Results, SettingsPanel, HistoryPanel,
+                   PlumBranch, Petals)
+src/lib/*.ts       settings (runes, localStorage), api client, history, fonts
+src/app.css        theme tokens (light/dark) + base styles
+scripts/           dev runner, data import, screenshot
+tests/             bun tests for the core modules
+data/              Jitendex JSON (gitignored, imported)
 ```
 
 ## Conventions & gotchas
@@ -65,7 +74,7 @@ data/          Jitendex JSON (gitignored, imported)
   engine treats both the same.
 - Punctuation is a token whose reading is the character itself; the romaji engine maps
   keys (`,`→、 `.`→。 `[`→「 `]`→」 `-`→ー `?`→？ `!`→！).
-- Animations: only `transform`/`opacity`; never read layout inside the keystroke hot path
+- Animations: only `transform`/`opacity` (colour transitions on text are fine; never animate layout properties); never read layout inside the keystroke hot path
   except once per group change. Respect `prefers-reduced-motion`.
 - All colours come from CSS custom properties defined per theme — no hard-coded colours
   in components or SVGs (use `currentColor` / `var(--…)`).
@@ -76,3 +85,7 @@ data/          Jitendex JSON (gitignored, imported)
 - Don't `pkill -f "bun server/main.ts"` from an agent shell — the pattern matches the shell itself.
 - The reference implementation for the dictionary hint lives at
   `/home/hudson/Desktop/japanslop/10ff-yomitan` (content.js, deinflect.js).
+- Biome lints `.svelte` files without seeing the template, so unused-import/variable and
+  `useConst` rules are off for `*.svelte` (in `biome.json`). Don't remove "unused" imports there by hand.
+- Typing text renders as one `.cell` per kana/punct char or kanji group, wrapped in nowrap
+  `.word` spans (`buildWords`) so lines break only between words.

@@ -22,7 +22,7 @@ bar / IME), and always shows an unobtrusive hint for the current word.
 | Romaji            | Accept **every** common romanization (shi/si, chi/ti, tsu/tu, fu/hu, ji/zi/di, ja/jya/zya, n/nn/n', xtu/ltu/double-consonant っ, xya/lya small kana, wo, `-`→ー, `,`→、 `.`→。 `[`→「 `]`→」 `?`→？ `!`→！). Ambiguity resolved like typing games: keep a set of live candidate paths through the target kana              | Standard approach (寿司打 etc.)                                                        |
 | Mistakes          | **Block + count**: a wrong key is rejected (flash red, miss counter++), never entered. No backspace needed                                                                                                                                                                                                                 | Can never desync from target kana                                                      |
 | Auto-conversion   | **Per ruby group.** Passage = tokens (words) → ruby groups (`{text:"食", reading:"た"}`, `{text:"べる", reading:"べる"}`). A group is shown as "done" (its real kanji/kana) the moment its reading is fully typed. While partway through a group, the typed kana + pending romaji show as a small composition at the caret | Feels like instant conversion                                                          |
-| Hint              | Setting with 3 modes: **full** (reading + romaji with progress + Jitendex definition/pitch/example), **romaji** (reading + romaji only), **off**. Rendered as a small, low-contrast card anchored just below the current word, moving smoothly with it; never covers the line being typed                                  | User request: "natural and unobtrusive"                                                |
+| Hint | Setting with 3 modes: **full** (romaji guide + Jitendex meaning/pitch/example card), **romaji**, **off**. The guide (reading + romaji with progress) is small text in the line gap directly under the current word; the dictionary card sits **below the text block**, gliding horizontally with the current word, so nothing ever covers text. | User request: "natural and unobtrusive" |
 | Readings source   | LLM returns segmented tokens with ruby-group readings (JSON schema enforced). Server **validates** each token against the dictionary (+ deinflection); invalid passages are repaired/retried once, then dropped                                                                                                            | LLM readings are usually right; dictionary catches mistakes                            |
 | Dictionary        | Reuse 10ff-yomitan data (Jitendex `dictionary.json`, `pitch.json`, `examples.json`) + port of Yomitan deinflector to TS. Data lives in `data/` (gitignored, ~65 MB), imported by `bun run data:import <path>`. Lookups happen **server-side**; the client only receives per-token annotations                              | Don't ship 65 MB to the browser                                                        |
 | Licensing         | Vendored Yomitan deinflector is GPLv3 → project is **GPLv3**. Jitendex data is CC BY-SA (attribution in README/about)                                                                                                                                                                                                      |                                                                                        |
@@ -61,44 +61,44 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 - [x] AGENTS.md + PLAN.md, CLAUDE.md → AGENTS.md
 - [x] Git hook enforcing docs updates (`.githooks/commit-msg`), installed by `bun install`
-- [ ] Bun + Vite + Svelte 5 + TS strict scaffold; `bun run check`, `bun test`, `bun dev`, `bun start`
-- [ ] Biome (lint + format)
+- [x] Bun + Vite + Svelte 5 + TS strict scaffold; `bun run check`, `bun test`, `bun dev`, `bun start`
+- [x] Biome (lint + format)
 
 ### M1 — Typing core (no LLM yet, hardcoded passage)
 
 - [x] Romaji engine: kana → candidate romaji trie, accepts all variants, `n` ambiguity, っ, small kana, punctuation (pure TS, heavily tested)
 - [x] Session state machine: tokens → groups → kana, per-key accept/reject, caret position, per-group completion
-- [ ] Paragraph view with per-group auto-conversion + caret composition (typed kana + pending romaji)
-- [ ] IME-on detection banner
-- [ ] Results screen: KPM, keys/min, accuracy, time, misses
+- [x] Paragraph view with per-group auto-conversion + caret composition (typed kana + pending romaji)
+- [x] IME-on detection banner
+- [x] Results screen: KPM, keys/min, accuracy, time, misses
 
 ### M2 — LLM generation
 
 - [x] Prompt + JSON schema; `claude -p` and `codex exec` backends with timeout + error reporting
 - [x] Server-side normalisation (katakana/hiragana readings, punctuation tokens, length trimming)
 - [x] Prefetch queue keyed by (backend, model, level, length, topic)
-- [ ] Settings UI: backend, model, level, length, topic
+- [x] Settings UI: backend, model, level, length, topic
 
 ### M3 — Dictionary + hints
 
 - [x] `data:import` script; compact server-side index; TS port of Yomitan deinflector (GPLv3 header kept)
 - [x] Validate LLM readings against dictionary; repair/retry
-- [ ] Hint card (full / romaji / off), anchored under current word, smooth follow
+- [x] Hint card (full / romaji / off), anchored under current word, smooth follow
 - [x] Tatoeba fallback passages
 
 ### M4 — Look & feel
 
-- [ ] Theme tokens, light/dark/system toggle
-- [ ] Fonts (fontsource) + font picker + font-size slider, live preview
-- [ ] Ticker mode
-- [ ] SVG plum-blossom decoration + optional petals; checked in both themes
+- [x] Theme tokens, light/dark/system toggle
+- [x] Fonts (fontsource) + font picker + font-size slider, live preview
+- [x] Ticker mode
+- [x] SVG plum-blossom decoration + optional petals; checked in both themes
 - [ ] Animation pass: caret glide, group-complete fade, ticker slide, hint follow; profile for 60 fps
 - [ ] `prefers-reduced-motion` support
 
 ### M5 — Polish
 
-- [ ] History view
-- [ ] Keyboard shortcuts (Tab = restart, Esc = settings, Enter on results = next)
+- [x] History view
+- [x] Keyboard shortcuts (Tab = restart, Esc = settings, Enter on results = next)
 - [ ] README with setup, licensing/attribution
 
 ## Open questions / later
@@ -108,6 +108,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - Furigana-over-kanji toggle on the target text for beginners?
 
 ## Log
+
+- 2026-11-14 — Frontend v1: Svelte 5 typing view (per-cell inline-blocks grouped into unbreakable words so lines wrap between words and never start with 、。), caret/composition/hint all positioned with transform. Hint split: romaji+reading guide sits in the line gap under the current word; Jitendex card sits *below the text block* (follows the word horizontally) so it never covers text. `scripts/screenshot.ts` for headless visual checks.
 
 - 2026-11-14 — Server done: claude/codex structured output, okurigana splitting, dictionary validation (all deinflection candidates, e.g. 行った → 行く+行う), prefetch queue, Tatoeba fallback (~21k sentences). Dictionary uses ~400 MB RSS and ~0.6 s to load.
 

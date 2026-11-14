@@ -1,0 +1,45 @@
+import type { GenerateRequest, HealthResponse, Passage, PassageResponse } from "./core/types.ts";
+import { currentModel, type Settings } from "./settings.svelte.ts";
+
+export function requestFor(s: Settings): GenerateRequest {
+  return {
+    backend: s.backend,
+    model: currentModel(s),
+    level: s.level,
+    length: s.length,
+    topic: s.topic,
+    dict: s.hint === "full",
+  };
+}
+
+async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
+  return (await res.json()) as T;
+}
+
+export function fetchPassage(req: GenerateRequest, signal?: AbortSignal): Promise<PassageResponse> {
+  return post("/api/passage", req, signal);
+}
+
+export async function fetchFallback(req: GenerateRequest): Promise<Passage> {
+  return (await post<{ passage: Passage }>("/api/fallback", req)).passage;
+}
+
+export function prefetch(req: GenerateRequest): void {
+  post("/api/prefetch", req).catch(() => {});
+}
+
+export async function fetchHealth(): Promise<HealthResponse | null> {
+  try {
+    const res = await fetch("/api/health");
+    return res.ok ? ((await res.json()) as HealthResponse) : null;
+  } catch {
+    return null;
+  }
+}
