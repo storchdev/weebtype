@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  nameEntry,
   normalizeTokens,
   sentenceEnds,
   splitOkurigana,
@@ -98,4 +99,16 @@ describe("translations follow the trim", () => {
     expect(translationFor(["Cat. Dog. Bird."], all, all)).toBe("Cat. Dog. Bird.");
     expect(translationFor(["Cat. Dog. Bird."], all, s1)).toBe("");
   });
+});
+
+test("nameEntry glosses names the dictionary lacks", () => {
+  const names = [{ w: "健太", en: "Kenta (male given name)" }];
+  expect(nameEntry("健太", "けんた", names)).toMatchObject({
+    term: "健太",
+    reading: "けんた",
+    tags: ["name"],
+    defs: ["Kenta (male given name)"],
+  });
+  expect(nameEntry("山田", "やまだ", names)).toBeNull();
+  expect(nameEntry("健太", "けんた", [{ w: "健太", en: " " }])).toBeNull();
 });

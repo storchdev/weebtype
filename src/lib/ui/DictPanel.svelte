@@ -34,6 +34,7 @@ const POS: Array<[RegExp, string]> = [
   [/^conjunction/, "conj."],
   [/^interjection/, "int."],
   [/^expression/, "exp."],
+  [/^name$/, "name"],
 ];
 // Example sentences carry furigana per kanji (日|曜|日); joined, the word doesn't get
 // torn apart when the reading is wider than its kanji.

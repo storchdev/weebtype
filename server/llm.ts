@@ -4,20 +4,31 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Backend, Level } from "../src/lib/core/types.ts";
-import type { RawToken } from "./normalize.ts";
+import type { ProperName, RawToken } from "./normalize.ts";
 
 export interface LlmPassage {
   /** One English translation per Japanese sentence, in order (so trimming can keep them in step). */
   translations: string[];
   tokens: RawToken[];
+  /** Proper nouns used (the dictionary has no names): token text + short English gloss. */
+  names?: ProperName[];
 }
 
 export const PASSAGE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["translations", "tokens"],
+  required: ["translations", "names", "tokens"],
   properties: {
     translations: { type: "array", items: { type: "string" } },
+    names: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["w", "en"],
+        properties: { w: { type: "string" }, en: { type: "string" } },
+      },
+    },
     tokens: {
       type: "array",
       items: {
@@ -67,6 +78,8 @@ export function buildPrompt(level: Level, length: number, steer: string[]): stri
     "okurigana as separate groups (食べる → 食/た, べる/べる), and keep jukujikun/ateji together (今日/きょう, 大人/おとな).",
     "Punctuation is its own token with t = r = the mark. Concatenating every t must reproduce the passage exactly.",
     "Readings must be correct for the context (e.g. 一日 as ついたち vs いちにち). `translations` has one natural English translation per Japanese sentence, in the same order (a quoted 「…。」 belongs to the sentence around it).",
+    "`names` lists every proper noun you used (people, places, shops, pets…) exactly as its token is written (w = 健太) with a short",
+    'English gloss (en = "Kenta (male given name)"); split a full name into one entry per token (山田 and 健太). Empty if none.',
   ].join("\n");
 }
 

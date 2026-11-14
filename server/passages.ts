@@ -5,7 +5,7 @@ import { isKana, isKanji, isPunct } from "../src/lib/core/kana.ts";
 import type { GenerateRequest, Passage, PassageResponse, Token } from "../src/lib/core/types.ts";
 import type { Dictionary } from "./dictionary.ts";
 import { buildPrompt, generate } from "./llm.ts";
-import { normalizeTokens, translationFor, trimToLength } from "./normalize.ts";
+import { nameEntry, normalizeTokens, type ProperName, translationFor, trimToLength } from "./normalize.ts";
 import { BUILTIN, type Tatoeba } from "./tatoeba.ts";
 import { Variety } from "./variety.ts";
 
@@ -27,7 +27,8 @@ export class PassageService {
   tatoeba: Tatoeba | null = null;
   readonly variety = new Variety();
 
-  annotate(tokens: Token[]): Token[] {
+  /** `names`: proper nouns the LLM reported, used where the dictionary has no entry. */
+  annotate(tokens: Token[], names: readonly ProperName[] = []): Token[] {
     const dict = this.dict;
     if (!dict) return tokens;
     // Entries for a kana token that was consumed as the okurigana of the token before it.
@@ -60,7 +61,9 @@ export class PassageService {
       }
       const entries = dict.lookup(surface, reading);
       if (extended && entries.length) carried = entries;
-      return entries.length ? { ...tok, dict: entries } : tok;
+      if (entries.length) return { ...tok, dict: entries };
+      const name = nameEntry(surface, reading, names);
+      return name ? { ...tok, dict: [name] } : tok;
     });
   }
 
@@ -92,7 +95,7 @@ export class PassageService {
         level: req.level,
         topic: req.topic.trim() || undefined,
         translation: translationFor(raw.translations ?? [], norm.tokens, kept),
-        tokens: this.annotate(kept),
+        tokens: this.annotate(kept, raw.names ?? []),
       };
     }
     throw new Error(lastErr);

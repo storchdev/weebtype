@@ -87,6 +87,8 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   `Backend` for the server, and `App.svelte` must route that mode to `fetchFallback`, never generate/prefetch.
 - Only settings that change *what is generated* (backend, model, level, length, topic) belong in
   `requestFor`; anything in it triggers a reload on settings close. Hint/display/font are view-only.
+- Jitendex has no proper nouns. LLM passages carry `names` ({w, en}); `annotate` uses `nameEntry` only
+  when the dictionary lookup misses (tag `"name"`).
 - Passage variety comes from `server/variety.ts` (directions + recent-passage list in the prompt).
   Don't reintroduce a numeric "seed" in prompts — models ignore it.
 - LLM CLIs run from an empty temp dir (so they don't read project instructions) with

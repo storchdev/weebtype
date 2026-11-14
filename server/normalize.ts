@@ -1,7 +1,7 @@
 // Turn raw LLM output into clean, typeable tokens and validate readings.
 
 import { allKana, isKana, isPunct, normalizePunct, toHiragana } from "../src/lib/core/kana.ts";
-import type { RubyGroup, Token } from "../src/lib/core/types.ts";
+import type { DictEntry, RubyGroup, Token } from "../src/lib/core/types.ts";
 
 export interface RawGroup {
   t: string;
@@ -9,6 +9,27 @@ export interface RawGroup {
 }
 export interface RawToken {
   groups: RawGroup[];
+}
+
+/** A proper noun from the LLM, since the dictionary (Jitendex) has no names. */
+export interface ProperName {
+  w: string;
+  en: string;
+}
+
+/** Dictionary entry for a name token the dictionary doesn't know (健太 → "Kenta (male given name)"). */
+export function nameEntry(surface: string, reading: string, names: readonly ProperName[]): DictEntry | null {
+  const n = names.find((x) => x.w.trim() === surface && x.en.trim());
+  if (!n) return null;
+  return {
+    term: surface,
+    reading,
+    pitch: null,
+    tags: ["name"],
+    defs: [n.en.trim()],
+    example: null,
+    deinflectedFrom: null,
+  };
 }
 
 export interface ReadingChecker {

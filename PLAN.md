@@ -136,6 +136,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Proper nouns (健太, 由美…) get a dictionary line: Jitendex has no names, so the LLM now lists the names it used with a short English gloss (`names` in the schema) and `annotate` falls back to them. Tatoeba passages still show nothing for names.
+
 - 2026-11-14 — Default port 5174 → 6494 (おうよう 応用 on the JIS kana number row); `WEEBTYPE_PORT` still overrides.
 
 - 2026-11-14 — Singer: vowel lengthening (い after e, う after o…) no longer applies everywhere — user found it unreliable. Now only inside a single kanji's reading (先生, 中, 父); across kanji/words and in kana it's sung as written.
