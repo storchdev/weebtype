@@ -178,7 +178,7 @@ const others = $derived(
     min-width: 0;
   }
   .reading {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--muted);
     letter-spacing: 0.06em;
     min-height: 1.6em;
@@ -192,7 +192,7 @@ const others = $derived(
   }
   .deinflect {
     margin-top: 4px;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--accent);
   }
   .pitch {
@@ -230,7 +230,7 @@ const others = $derived(
     display: flex;
     align-items: baseline;
     gap: 12px;
-    font-size: 14px;
+    font-size: 16px;
   }
   .pos {
     font-family: var(--title-font);
@@ -246,7 +246,7 @@ const others = $derived(
     display: flex;
     flex-wrap: wrap;
     gap: 0 18px;
-    font-size: 14px;
+    font-size: 16px;
     color: var(--ink);
   }
   .defs li {
@@ -255,7 +255,7 @@ const others = $derived(
   .defs li::before {
     content: counter(d, cjk-decimal);
     margin-right: 6px;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--accent);
   }
   .others {
@@ -263,20 +263,20 @@ const others = $derived(
     display: flex;
     flex-wrap: wrap;
     gap: 0 14px;
-    font-size: 12px;
+    font-size: 14px;
     color: var(--muted);
   }
   .example {
-    margin-top: 8px;
+    margin-top: 10px;
     display: flex;
     flex-direction: column;
-    font-size: 12.5px;
+    font-size: 15px;
   }
   .ex-jp {
     color: var(--ink-soft);
   }
   .ex-jp rt {
-    font-size: 0.62em;
+    font-size: 0.6em;
     color: var(--muted);
   }
   .kw {
@@ -285,6 +285,6 @@ const others = $derived(
   .ex-en {
     color: var(--muted);
     font-style: italic;
-    font-size: 12px;
+    font-size: 14px;
   }
 </style>

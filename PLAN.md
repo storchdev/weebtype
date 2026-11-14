@@ -111,6 +111,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Dictionary panel text enlarged: reading 14px, definitions 16px, other senses 14px, example 15px / translation 14px, deinflection 13px (headword unchanged).
+
 - 2026-11-14 — Results stats use the history page's unit style (number + small muted unit): 100.0 %, 2217 打/分, 4.5 秒 / 1分05秒; chart axis in 秒.
 
 - 2026-11-14 — Fixed near-identical passages: replaced the ignored `variety seed N` with server-picked directions (130+ subjects, 12 forms, narrators, tones; shuffle bags) and a recent-subjects/openings avoid list; banned stock openings. Live check: 4 N4 passages (2 parallel) all distinct. Results/history labels are lowercase now.
