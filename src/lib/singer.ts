@@ -74,6 +74,9 @@ const SCOOP = 1.5;
 /** Gap between syllables completed by one key (e.g. ん + next kana). */
 const STAGGER_MS = 85;
 
+/** Where the accent contour's low base sits, in semitones above BASE_HZ. */
+const SPEECH_BASE = 2;
+
 const hzOf = (semis: number) => BASE_HZ * 2 ** (semis / 12);
 
 /** Builds one sung syllable into `ctx`, starting at `t0`. Works on any context. */
@@ -183,8 +186,11 @@ export class Singer {
     this.volume = Math.max(0, Math.min(1, v));
   }
 
-  /** Sing newly typed kana. Punctuation ends a phrase. */
-  sing(text: string): void {
+  /**
+   * Sing newly typed kana. `tones` (semitones per char of `text`, from the pitch-accent
+   * contour) set the pitch; without them a pentatonic melody wanders instead.
+   */
+  sing(text: string, tones?: readonly number[]): void {
     if (this.volume <= 0) return;
     const sylls = syllables(text, this.lastVowel);
     if ([...text].some((c) => "、。！？」".includes(c))) this.melody.cadence();
@@ -197,7 +203,13 @@ export class Singer {
       }
       if (s.vowel !== "n") this.lastVowel = s.vowel;
       // ー holds the same pitch; everything else takes the next melody note
-      const semis = s.kana === "ー" || s.kana === "〜" ? this.lastSemis : this.melody.next();
+      const tone = tones?.[s.at];
+      const semis =
+        tone !== undefined
+          ? SPEECH_BASE + tone
+          : s.kana === "ー" || s.kana === "〜"
+            ? this.lastSemis
+            : this.melody.next();
       this.lastSemis = semis;
       this.play(s, semis, delay);
     });

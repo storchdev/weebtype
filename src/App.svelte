@@ -155,7 +155,13 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
 <div class="branch-wrap" aria-hidden="true"><PlumBranch /></div>
 {#if settings.petals}<Petals />{/if}
 {#if settings.battle && view !== "history"}
-  <Battle bind:this={battle} {runId} volume={settings.battleVolume} font={fontFamily(settings.font)} />
+  <Battle
+    bind:this={battle}
+    {runId}
+    volume={settings.battleVolume}
+    font={fontFamily(settings.font)}
+    tokens={passage?.tokens}
+  />
 {/if}
 
 <div class="shell">

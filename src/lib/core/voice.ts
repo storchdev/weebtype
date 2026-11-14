@@ -27,6 +27,8 @@ export interface Syllable {
   consonant: string;
   /** "n" = syllabic ん (hummed), null = silent beat (っ). */
   vowel: Vowel | "n" | null;
+  /** Offset of the syllable's first char in the input text. */
+  at: number;
 }
 
 const VOWELS = "aiueo";
@@ -56,25 +58,28 @@ function onsetOf(c: string): Onset {
 export function syllables(text: string, prev: Vowel | null = null): Syllable[] {
   const out: Syllable[] = [];
   let last = prev;
+  let at = 0;
   for (const u of splitUnits(text)) {
+    const here = at;
+    at += u.kana.length;
     if (u.kana === "ー" || u.kana === "〜") {
-      if (last) out.push({ kana: u.kana, onset: "none", consonant: "", vowel: last });
+      if (last) out.push({ kana: u.kana, onset: "none", consonant: "", vowel: last, at: here });
       continue;
     }
     if (isPunct(u.kana)) continue;
     if (u.kind === "sokuon") {
-      out.push({ kana: u.kana, onset: "none", consonant: "", vowel: null });
+      out.push({ kana: u.kana, onset: "none", consonant: "", vowel: null, at: here });
       continue;
     }
     if (u.kind === "n") {
-      out.push({ kana: u.kana, onset: "nasal", consonant: "n", vowel: "n" });
+      out.push({ kana: u.kana, onset: "nasal", consonant: "n", vowel: "n", at: here });
       continue;
     }
     const r = u.cands[0] ?? "";
     const v = r[r.length - 1] ?? "";
     if (!VOWELS.includes(v) || r.length === 0) continue; // digits, latin…
     const consonant = r.slice(0, -1);
-    out.push({ kana: u.kana, onset: onsetOf(consonant), consonant, vowel: v as Vowel });
+    out.push({ kana: u.kana, onset: onsetOf(consonant), consonant, vowel: v as Vowel, at: here });
     last = v as Vowel;
   }
   return out;

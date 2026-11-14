@@ -99,7 +99,7 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
 - Battle mode: `TypingArea` reports newly completed kana via `onkana`; `Battle.svelte` creates
   projectiles imperatively (WAAPI, transform/opacity) and only measures screen positions on
   mount/resize/new run — keep it that way. The voice is synthesized (`singer.ts` + pure
-  `core/voice.ts`); don't add character art or voice samples from existing franchises.
+  `core/voice.ts`, pitch from the accent contour in `core/accent.ts`, which indexes the session target char-for-char); don't add character art or voice samples from existing franchises.
 - Sound is **only** played via `<audio>` elements (files or rendered WAV blobs). Don't connect
   live Web Audio to `ctx.destination` — it was silent on the user's Chromium/PipeWire.
 - Typing text renders as one `.cell` per kana/punct char or kanji group, wrapped in nowrap
