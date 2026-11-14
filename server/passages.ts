@@ -1,7 +1,7 @@
 // Passage service: LLM generation, validation, dictionary annotation, prefetch queue,
 // and offline fallback.
 
-import { isPunct } from "../src/lib/core/kana.ts";
+import { isKana, isKanji, isPunct } from "../src/lib/core/kana.ts";
 import type { GenerateRequest, Passage, PassageResponse, Token } from "../src/lib/core/types.ts";
 import type { Dictionary } from "./dictionary.ts";
 import { buildPrompt, generate } from "./llm.ts";
@@ -28,11 +28,36 @@ export class PassageService {
   annotate(tokens: Token[]): Token[] {
     const dict = this.dict;
     if (!dict) return tokens;
-    return tokens.map((tok) => {
-      const surface = tok.groups.map((g) => g.t).join("");
+    // Entries for a kana token that was consumed as the okurigana of the token before it.
+    let carried: Token["dict"] | undefined;
+    return tokens.map((tok, i) => {
+      if (carried) {
+        const d = carried;
+        carried = undefined;
+        return { ...tok, dict: d };
+      }
+      let surface = tok.groups.map((g) => g.t).join("");
       if ([...surface].every(isPunct)) return tok;
-      const reading = tok.groups.map((g) => g.r).join("");
+      let reading = tok.groups.map((g) => g.r).join("");
+      let extended = false;
+      // A bare-kanji token followed by kana (Tatoeba: 歩 | いて行きますか) may be a
+      // verb/adjective stem: take the longest kana extension that is an inflected form
+      // with this reading (歩いて → 歩く), like a Yomitan scan.
+      const next = tokens[i + 1];
+      const nextText = next?.groups.map((g) => g.t).join("") ?? "";
+      if (isKanji(surface.at(-1) ?? "") && nextText && [...nextText].every(isKana)) {
+        for (let k = Math.min(nextText.length, 8); k > 0; k--) {
+          const ext = nextText.slice(0, k);
+          if (dict.isInflectedWord(surface + ext, reading + ext)) {
+            surface += ext;
+            reading += ext;
+            extended = true;
+            break;
+          }
+        }
+      }
       const entries = dict.lookup(surface, reading);
+      if (extended && entries.length) carried = entries;
       return entries.length ? { ...tok, dict: entries } : tok;
     });
   }

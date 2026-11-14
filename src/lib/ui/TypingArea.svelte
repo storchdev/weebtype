@@ -5,7 +5,7 @@ import { type Stats, TypingSession } from "../core/session.ts";
 import type { Passage } from "../core/types.ts";
 import { fontFamily } from "../fonts.ts";
 import type { DisplayMode, HintMode } from "../settings.svelte.ts";
-import DictCard from "./DictCard.svelte";
+import DictPanel from "./DictPanel.svelte";
 
 interface Props {
   passage: Passage;
@@ -41,7 +41,6 @@ let offsetY = $state(0);
 let viewportW = $state(0);
 let viewportH = $state(0);
 let stripH = $state(0);
-let cardW = $state(0);
 let ready = $state(false);
 
 let viewport: HTMLDivElement | undefined = $state();
@@ -49,8 +48,17 @@ let strip: HTMLDivElement | undefined = $state();
 let caret: HTMLDivElement | undefined = $state();
 
 const LINE = 2.45; // line-height in em
-const MAX_LINES = 5;
 const linePitch = $derived(fontSize * LINE);
+// Paragraph lines shown at once: up to 5, fewer on short windows so the text, the
+// dictionary panel and the footer all fit below the branch without scrolling.
+let winW = $state(window.innerWidth);
+let winH = $state(window.innerHeight);
+const maxLines = $derived.by(() => {
+  const branchW = Math.min(Math.max(200, winW * 0.3), 440, winH * 0.44); // = --branch-w
+  const top = Math.max(winH * 0.04, branchW * 0.545 - 30) + 62 + 64; // header + meta
+  const below = (hint === "full" ? 200 : 40) + 56; // panel + footer
+  return Math.max(2, Math.min(5, Math.floor((winH - top - below) / linePitch)));
+});
 
 const curCell = $derived(cells[cur]);
 const composition = $derived.by(() => {
@@ -101,7 +109,7 @@ function measure(): void {
     viewportH = linePitch;
   } else {
     offsetX = 0;
-    const maxH = MAX_LINES * linePitch;
+    const maxH = maxLines * linePitch;
     viewportH = Math.min(stripH, maxH);
     const lineTop = y - (linePitch - el.offsetHeight) / 2;
     const target = lineTop - linePitch; // keep one line of context above
@@ -116,6 +124,7 @@ $effect(() => {
   void display;
   void fontSize;
   void font;
+  void maxLines;
   measure();
 });
 
@@ -213,11 +222,11 @@ const guideX = $derived(pos.tokenX - offsetX);
 const guideY = $derived(pos.y - offsetY + pos.h * 0.94);
 const guideSize = $derived(Math.max(11, Math.min(16, fontSize * 0.36)));
 const dictEntry = $derived(hint === "full" ? passage.tokens[hintToken]?.dict : undefined);
-const cardX = $derived(display === "ticker" ? guideX : Math.max(0, Math.min(guideX, viewportW - cardW)));
-const cardY = $derived(viewportH + guideSize * 1.6 + 6);
+const markerX = $derived(Math.max(0, Math.min(guideX, viewportW - 18)));
+const panelY = $derived(viewportH + guideSize * 1.4 + 22);
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} bind:innerWidth={winW} bind:innerHeight={winH} />
 
 <div class="area" style="--font: {fontFamily(font)}; --size: {fontSize}px; --line: {LINE};">
   <div class="meta">
@@ -225,8 +234,9 @@ const cardY = $derived(viewportH + guideSize * 1.6 + 6);
       <span><b>{Math.round(live.kpm)}</b> 字/分</span>
       <span><b>{Math.round(live.accuracy * 100)}</b>%</span>
     </div>
-    <div class="progress"><div class="bar" style="transform: scaleX({progress})"></div></div>
+    <div class="count"><b>{snap.kanaDone}</b> / {session.target.length}</div>
   </div>
+  <div class="progress"><div class="bar" style="transform: scaleX({progress})"></div></div>
 
   <div class="stage" class:ready class:with-card={hint === "full"}>
     <div
@@ -276,11 +286,14 @@ const cardY = $derived(viewportH + guideSize * 1.6 + 6);
             ><span class="g-done">{hintReading.slice(0, hintReadingDone)}</span>{hintReading.slice(
               hintReadingDone,
             )}</span
-          >{/if}<span class="g-romaji"><span class="g-typed">{hintGuide.typed}</span>{hintGuide.rest}</span>
+          >{/if}{#if hint !== "kana"}<span class="g-romaji"
+          ><span class="g-typed">{hintGuide.typed}</span><span class="g-next">{hintGuide.rest.slice(0, 1)}</span
+          >{hintGuide.rest.slice(1)}</span
+          >{/if}
       </div>
-      {#if dictEntry?.length}
-        <div class="card" style="transform: translate3d({cardX}px, {cardY}px, 0)">
-          <DictCard entries={dictEntry} surface={hintSurface} bind:width={cardW} />
+      {#if hint === "full"}
+        <div class="panel-pos" style="transform: translate3d(0, {panelY}px, 0)">
+          <DictPanel entries={dictEntry} surface={hintSurface} {markerX} tokenKey={hintToken} />
         </div>
       {/if}
     {/if}
@@ -294,37 +307,39 @@ const cardY = $derived(viewportH + guideSize * 1.6 + 6);
   }
   .meta {
     display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 18px;
-    height: 22px;
+    align-items: baseline;
+    justify-content: space-between;
+    height: 20px;
+    margin-bottom: 8px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .live {
     display: flex;
-    gap: 14px;
+    gap: 16px;
     opacity: 0;
     transition: opacity 0.4s var(--ease-out);
-    min-width: 120px;
   }
   .live.show {
     opacity: 1;
   }
-  .live b {
+  .live b,
+  .count b {
     color: var(--ink-soft);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
   }
+  .count {
+    font-variant-numeric: tabular-nums;
+  }
   .progress {
-    flex: 1;
-    height: 2px;
+    height: 1px;
     background: var(--faint);
-    border-radius: 2px;
-    overflow: hidden;
+    margin-bottom: 36px;
   }
   .bar {
-    height: 100%;
+    height: 2px;
+    margin-top: -0.5px;
     background: var(--accent);
     transform-origin: left;
     transition: transform 0.25s var(--ease-out);
@@ -342,7 +357,7 @@ const cardY = $derived(viewportH + guideSize * 1.6 + 6);
     padding-bottom: 2.2em;
   }
   .stage.with-card {
-    padding-bottom: 230px;
+    padding-bottom: 200px;
   }
   .viewport {
     position: relative;
@@ -455,7 +470,7 @@ const cardY = $derived(viewportH + guideSize * 1.6 + 6);
   }
 
   .guide,
-  .card {
+  .panel-pos {
     position: absolute;
     left: 0;
     top: 0;
@@ -463,8 +478,7 @@ const cardY = $derived(viewportH + guideSize * 1.6 + 6);
     will-change: transform;
     transition: transform 0.2s var(--ease-out);
   }
-  .ticker ~ .guide,
-  .ticker ~ .card {
+  .ticker ~ .guide {
     transition-duration: 0.16s;
   }
   .guide {
@@ -489,9 +503,15 @@ const cardY = $derived(viewportH + guideSize * 1.6 + 6);
   .g-typed {
     color: var(--accent);
   }
-  .card {
-    z-index: 3;
-    animation: fade-in 0.3s var(--ease-out);
+  .panel-pos {
+    right: 0;
+    transition-duration: 0.3s;
+  }
+  .g-next {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-underline-offset: 3px;
   }
   @keyframes fade-in {
     from {

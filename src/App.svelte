@@ -262,7 +262,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     position: fixed;
     top: -6px;
     right: -10px;
-    width: clamp(220px, 34vw, 500px);
+    width: var(--branch-w);
     pointer-events: none;
     z-index: 0;
     opacity: 0.95;
@@ -273,6 +273,11 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
       opacity: 0;
       transform: translate3d(12px, -8px, 0);
     }
+  }
+  :global(:root) {
+    /* shared by the branch and the main area's top padding */
+    --branch-w: min(clamp(200px, 30vw, 440px), 44vh);
+    --branch-h: calc(var(--branch-w) * 0.545);
   }
   .shell {
     position: relative;
@@ -320,6 +325,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     font-weight: 600;
     line-height: 1.05;
     letter-spacing: 0.02em;
+    gap: 5px;
   }
   .word small {
     font-size: 10.5px;
@@ -385,8 +391,10 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    padding: 4vh 0 10vh;
+    justify-content: safe center;
+    /* the branch hangs over the top-right corner: start content below its lowest
+       blossom so it can never overlap the text (header is ~62px tall) */
+    padding: max(4vh, calc(var(--branch-h) - 30px)) 0 6vh;
     min-height: 0;
   }
   .typing {

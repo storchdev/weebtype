@@ -13,20 +13,28 @@ interface Sentence {
 }
 
 /** Convert example segments to tokens; returns null if something isn't typeable. */
-function toTokens(segs: Array<{ t: string; r?: string }>): Token[] | null {
+export function toTokens(segs: Array<{ t: string; r?: string }>): Token[] | null {
   const tokens: Token[] = [];
   let kanaRun = "";
   const flush = () => {
     if (kanaRun) tokens.push({ groups: [{ t: kanaRun, r: kanaRun }] });
     kanaRun = "";
   };
+  // Adjacent ruby segments are per-kanji furigana of one word (彼|女 → 彼女), so they
+  // become one token with a group per segment.
+  let prevRuby = false;
   for (const s of segs) {
     if (s.r) {
       flush();
       if (![...s.r].every(isKana)) return null;
-      tokens.push({ groups: [{ t: s.t, r: toHiragana(s.r) }] });
+      const group = { t: s.t, r: toHiragana(s.r) };
+      const last = tokens[tokens.length - 1];
+      if (prevRuby && last) last.groups.push(group);
+      else tokens.push({ groups: [group] });
+      prevRuby = true;
       continue;
     }
+    prevRuby = false;
     for (const raw of s.t) {
       const ch = normalizePunct(raw);
       if (isPunct(ch)) {

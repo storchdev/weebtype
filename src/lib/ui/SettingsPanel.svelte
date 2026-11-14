@@ -93,6 +93,7 @@ $effect(() => {
     <div class="seg">
       <button class:on={settings.hint === "full"} onclick={() => (settings.hint = "full")}>romaji + meaning</button>
       <button class:on={settings.hint === "romaji"} onclick={() => (settings.hint = "romaji")}>romaji</button>
+      <button class:on={settings.hint === "kana"} onclick={() => (settings.hint = "kana")}>kana only</button>
       <button class:on={settings.hint === "off"} onclick={() => (settings.hint = "off")}>off</button>
     </div>
   </section>

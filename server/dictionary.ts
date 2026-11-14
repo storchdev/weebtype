@@ -141,11 +141,29 @@ export class Dictionary {
    * Dictionary entries for the hint card. When `reading` is given, entries with a
    * matching reading are ranked first.
    */
+  /**
+   * True if `surface` (with this reading) is an inflecting word: a verb/adjective form
+   * reached by deinflection (歩いて → 歩く) or a verb/adjective dictionary form. Noun
+   * compounds that happen to exist (本の) don't count.
+   */
+  isInflectedWord(surface: string, reading: string): boolean {
+    const want = toHiragana(reading);
+    return this.matches(surface).some(
+      (m) =>
+        this.surfaceReading(m) === want &&
+        (m.entry.w !== surface || m.entry.t.some((t) => /dan|verb|adjective/.test(t))),
+    );
+  }
+
   lookup(surface: string, reading?: string, max = 3): DictEntry[] {
     let ms = this.matches(surface);
     if (reading) {
       const want = toHiragana(reading);
-      const good = ms.filter((m) => this.surfaceReading(m) === want);
+      // Reading matches first; among those, entries written exactly as the surface
+      // (の the particle before 野 for a kana token).
+      const good = ms
+        .filter((m) => this.surfaceReading(m) === want)
+        .sort((a, b) => Number(b.entry.w === surface) - Number(a.entry.w === surface));
       ms = [...good, ...ms.filter((m) => !good.includes(m))];
     }
     const seen = new Set<string>();

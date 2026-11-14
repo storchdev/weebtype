@@ -59,7 +59,7 @@ the script and look at them before committing.
 server/            Bun.serve API (main.ts), LLM backends (llm.ts), passages + prefetch,
                    normalisation, dictionary + vendored deinflect, Tatoeba fallback
 src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
-src/lib/ui/        Svelte components (TypingArea, DictCard, Results, SettingsPanel, HistoryPanel,
+src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
                    PlumBranch, Petals)
 src/lib/*.ts       settings (runes, localStorage), api client, history, fonts
 src/app.css        theme tokens (light/dark) + base styles

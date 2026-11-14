@@ -3,7 +3,7 @@
 import { type Backend, LEVELS, type Level } from "./core/types.ts";
 import { FONTS } from "./fonts.ts";
 
-export type HintMode = "full" | "romaji" | "off";
+export type HintMode = "full" | "romaji" | "kana" | "off";
 export type DisplayMode = "paragraph" | "ticker";
 export type ThemeMode = "system" | "light" | "dark";
 
@@ -60,7 +60,7 @@ function sanitize(raw: unknown): Settings {
     level: oneOf(r.level, LEVELS, DEFAULTS.level),
     length: num(r.length, 20, 1000, DEFAULTS.length),
     topic: str(r.topic, ""),
-    hint: oneOf(r.hint, ["full", "romaji", "off"] as const, DEFAULTS.hint),
+    hint: oneOf(r.hint, ["full", "romaji", "kana", "off"] as const, DEFAULTS.hint),
     display: oneOf(r.display, ["paragraph", "ticker"] as const, DEFAULTS.display),
     theme: oneOf(r.theme, ["system", "light", "dark"] as const, DEFAULTS.theme),
     font: oneOf(
