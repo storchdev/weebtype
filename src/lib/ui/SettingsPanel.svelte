@@ -3,7 +3,7 @@ import { LEVELS } from "../core/types.ts";
 import { FONTS } from "../fonts.ts";
 import { playKey } from "../keysound.ts";
 import { FONT_SIZE_RANGE, LENGTH_PRESETS, saveSettings, settings } from "../settings.svelte.ts";
-import { singer } from "../singer.ts";
+import { singer, voicebank } from "../singer.ts";
 
 function previewVoice(): void {
   singer.setVolume(settings.battleVolume / 100);
@@ -148,6 +148,11 @@ $effect(() => {
         <span class="label">Voice <small>{settings.battleVolume ? `${settings.battleVolume}%` : "muted"}</small></span>
         <input type="range" min="0" max="100" step="5" bind:value={settings.battleVolume} onchange={previewVoice} />
       </label>
+      {#await voicebank() then bank}
+        <p class="note">
+          {#if bank}voicebank: {bank.name}{:else}built-in synth · unzip a UTAU CV voicebank into <code>data/voice/</code> for a real voice{/if}
+        </p>
+      {/await}
     {/if}
     <label class="field check">
       <input
@@ -301,6 +306,14 @@ $effect(() => {
     font-style: normal;
     color: var(--muted);
     margin-left: 4px;
+  }
+  .note {
+    margin: -6px 0 14px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .note code {
+    font-size: 10.5px;
   }
   .fonts {
     display: grid;

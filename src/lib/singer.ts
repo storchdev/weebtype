@@ -8,6 +8,8 @@
 // into a media element — was silent on a real Chromium + PipeWire setup where <audio>
 // with a file source plays fine, so the voice only ever uses the latter.
 
+import { estimateF0 } from "./core/f0.ts";
+import { type OtoEntry, OtoIndex, type Voicebank } from "./core/oto.ts";
 import { Melody, type Onset, type Syllable, syllables, type Vowel } from "./core/voice.ts";
 import { encodeWav } from "./core/wav.ts";
 
@@ -173,6 +175,97 @@ export async function renderSyllable(s: Syllable, semis: number): Promise<Float3
   return data;
 }
 
+// ---- optional UTAU voicebank (data/voice/, served by /api/voice) ----
+
+export interface LoadedBank {
+  name: string;
+  index: OtoIndex;
+}
+
+let bankPromise: Promise<LoadedBank | null> | null = null;
+
+/** The user's voicebank, if one is installed (fetched once). */
+export function voicebank(): Promise<LoadedBank | null> {
+  bankPromise ??= fetch("/api/voice")
+    .then((r) => (r.ok ? (r.json() as Promise<{ bank: Voicebank | null }>) : null))
+    .then((j) => {
+      const bank = j?.bank;
+      if (!bank) return null;
+      const index = new OtoIndex(bank.entries);
+      return index.size ? { name: bank.name, index } : null;
+    })
+    .catch(() => null);
+  return bankPromise;
+}
+
+interface Sample {
+  data: Float32Array;
+  rate: number;
+}
+const samples = new Map<string, Promise<Sample | null>>();
+
+function loadSample(file: string): Promise<Sample | null> {
+  let p = samples.get(file);
+  if (!p) {
+    p = fetch(`/api/voice/sample?p=${encodeURIComponent(file)}`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((buf) => new OfflineAudioContext(1, 1, SAMPLE_RATE).decodeAudioData(buf))
+      .then((b) => ({ data: b.getChannelData(0), rate: b.sampleRate }))
+      .catch(() => null);
+    samples.set(file, p);
+  }
+  return p;
+}
+
+/** Vowel pitch of a sample (Hz), measured just after the consonant. */
+function sampleF0(s: Sample, e: OtoEntry): number | null {
+  const start = Math.floor(((e.offset + Math.max(e.consonant, e.preutter)) / 1000) * s.rate);
+  const win = s.data.subarray(start, start + Math.floor(0.06 * s.rate));
+  return win.length > 512 ? estimateF0(win, s.rate) : null;
+}
+
+/** All notes are pitched relative to this (Hz): the bank's own "a", so shifts stay small. */
+let bankRef: Promise<number> | null = null;
+function bankRefHz(bank: LoadedBank): Promise<number> {
+  bankRef ??= (async () => {
+    const e = bank.index.find({ kana: "あ", onset: "none", consonant: "", vowel: "a", at: 0 });
+    const s = e ? await loadSample(e.file) : null;
+    return (s && e && sampleF0(s, e)) || hzOf(SPEECH_BASE + 3);
+  })();
+  return bankRef;
+}
+
+/** Cuts a note from a voicebank sample and resamples it to `targetHz`. */
+async function renderSample(e: OtoEntry, s: Sample, targetHz: number): Promise<Float32Array> {
+  const f0 = sampleF0(s, e) ?? targetHz;
+  const rate = Math.max(0.5, Math.min(2, targetHz / f0));
+  const total = s.data.length / s.rate;
+  const off = e.offset / 1000;
+  const end = e.cutoff < 0 ? off - e.cutoff / 1000 : total - e.cutoff / 1000;
+  const lead = Math.max(e.consonant, e.preutter) / 1000;
+  // consonant as recorded, then about one note of vowel (both in source time)
+  const srcDur = Math.max(0.05, Math.min(end - off, lead + (NOTE_LEN + 0.06) * rate));
+  const outDur = srcDur / rate;
+  const ctx = new OfflineAudioContext(1, Math.ceil(SAMPLE_RATE * (outDur + 0.01)), SAMPLE_RATE);
+  const buf = ctx.createBuffer(1, s.data.length, s.rate);
+  buf.copyToChannel(s.data as Float32Array<ArrayBuffer>, 0);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = rate;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, 0);
+  g.gain.linearRampToValueAtTime(1, 0.006);
+  g.gain.setValueAtTime(1, Math.max(0.01, outDur - 0.07));
+  g.gain.linearRampToValueAtTime(0, outDur);
+  src.connect(g).connect(ctx.destination);
+  src.start(0, off, srcDur);
+  const data = (await ctx.startRendering()).getChannelData(0);
+  let peak = 0;
+  for (const v of data) peak = Math.max(peak, Math.abs(v));
+  if (peak > 0) for (let i = 0; i < data.length; i++) data[i] = ((data[i] as number) * 0.8) / peak;
+  return data;
+}
+
 export class Singer {
   private readonly melody = new Melody();
   private lastSemis = 4;
@@ -218,8 +311,10 @@ export class Singer {
   /** A short "ra-ra-ra" so the volume can be checked from settings. */
   preview(): void {
     this.melody.reset();
+    // a little accent-like phrase: low, up, up, held
+    const tones = [0, 3, 3, 3];
     ["ら", "ら", "ら", "ー"].forEach((k, i) => {
-      setTimeout(() => this.sing(k), i * 160);
+      setTimeout(() => this.sing(k, [tones[i] as number]), i * 160);
     });
   }
 
@@ -234,17 +329,31 @@ export class Singer {
     this.current = null;
   }
 
-  private element(s: Syllable, semis: number): Promise<HTMLAudioElement | null> {
-    const key = `${s.onset}|${s.consonant}|${s.vowel}|${semis}`;
+  private async element(s: Syllable, semis: number): Promise<HTMLAudioElement | null> {
+    const bank = await voicebank();
+    const entry = bank?.index.find(s) ?? null;
+    const key = entry
+      ? `${entry.file}|${entry.alias}|${semis}`
+      : `${s.onset}|${s.consonant}|${s.vowel}|${semis}`;
     let el = this.cache.get(key);
     if (!el) {
-      el = renderSyllable(s, semis)
-        .then((data) => {
-          const a = new Audio(URL.createObjectURL(encodeWav(data, SAMPLE_RATE)));
-          a.preload = "auto";
-          return a;
-        })
-        .catch(() => null);
+      el = (async () => {
+        let data: Float32Array | null = null;
+        if (bank && entry) {
+          const sample = await loadSample(entry.file);
+          // the accent contour's middle lands on the bank's own pitch
+          if (sample)
+            data = await renderSample(
+              entry,
+              sample,
+              (await bankRefHz(bank)) * 2 ** ((semis - SPEECH_BASE - 3) / 12),
+            );
+        }
+        data ??= await renderSyllable(s, semis);
+        const a = new Audio(URL.createObjectURL(encodeWav(data, SAMPLE_RATE)));
+        a.preload = "auto";
+        return a;
+      })().catch(() => null);
       this.cache.set(key, el);
     }
     return el;

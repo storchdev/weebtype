@@ -6,6 +6,7 @@ import { Dictionary } from "./dictionary.ts";
 import { backendAvailable } from "./llm.ts";
 import { PassageService } from "./passages.ts";
 import { Tatoeba } from "./tatoeba.ts";
+import { loadVoicebank, samplePath } from "./voicebank.ts";
 
 const PORT = Number(process.env.WEEBTYPE_PORT ?? 5174);
 const DIST = join(import.meta.dir, "..", "dist");
@@ -59,6 +60,13 @@ const server = Bun.serve({
         dictionary: dictLoaded,
         tatoeba: (service.tatoeba?.size ?? 0) > 0,
       } satisfies HealthResponse),
+    // Optional UTAU voicebank in data/voice/ (rescanned per call; the client asks once per load).
+    "/api/voice": async () => Response.json({ bank: await loadVoicebank() }),
+    "/api/voice/sample": async (req) => {
+      const p = samplePath(new URL(req.url).searchParams.get("p") ?? "");
+      const f = p ? Bun.file(p) : null;
+      return f && (await f.exists()) ? new Response(f) : new Response("not found", { status: 404 });
+    },
     "/api/passage": {
       POST: async (req) => {
         const r = await readRequest(req);

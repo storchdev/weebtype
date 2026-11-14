@@ -66,6 +66,7 @@ src/app.css        theme tokens (light/dark) + base styles
 scripts/           dev runner, data setup (download + pure converters in build-data.ts), screenshot
 tests/             bun tests for the core modules
 public/sounds/     CC0 keyboard clicks (credited in README)
+data/voice/        optional user-installed UTAU voicebank for the singer (never committed)
 data/              dictionary/pitch/examples JSON (gitignored, built by data:setup)
 ```
 
@@ -100,6 +101,8 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   projectiles imperatively (WAAPI, transform/opacity) and only measures screen positions on
   mount/resize/new run — keep it that way. The voice is synthesized (`singer.ts` + pure
   `core/voice.ts`, pitch from the accent contour in `core/accent.ts`, which indexes the session target char-for-char); don't add character art or voice samples from existing franchises.
+- Voicebanks: `oto.ini`/`character.txt` are usually Shift-JIS (`server/voicebank.ts` decodes);
+  aliases may carry pitch/expression suffixes (`- かA4`, `a かS`) — `baseAlias` strips them.
 - Sound is **only** played via `<audio>` elements (files or rendered WAV blobs). Don't connect
   live Web Audio to `ctx.destination` — it was silent on the user's Chromium/PipeWire.
 - Typing text renders as one `.cell` per kana/punct char or kanji group, wrapped in nowrap
