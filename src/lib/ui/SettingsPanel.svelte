@@ -41,7 +41,7 @@ $effect(() => {
       <span class="label">Generator</span>
       <div class="seg">
         {#each ["claude", "codex"] as const as b}
-          <button class:on={settings.backend === b} onclick={() => (settings.backend = b)}>
+          <button class="tbtn" class:on={settings.backend === b} onclick={() => (settings.backend = b)}>
             {b}
             {#if backends && !backends[b]}<em>missing</em>{/if}
           </button>
@@ -60,7 +60,7 @@ $effect(() => {
       <span class="label">Vocabulary</span>
       <div class="seg">
         {#each LEVELS as l}
-          <button class:on={settings.level === l} onclick={() => (settings.level = l)}>{LEVEL_LABEL[l]}</button>
+          <button class="tbtn" class:on={settings.level === l} onclick={() => (settings.level = l)}>{LEVEL_LABEL[l]}</button>
         {/each}
       </div>
     </div>
@@ -69,6 +69,7 @@ $effect(() => {
       <div class="seg">
         {#each LENGTH_PRESETS as n}
           <button
+            class="tbtn"
             class:on={!customLength && settings.length === n}
             onclick={() => {
               customLength = false;
@@ -76,7 +77,7 @@ $effect(() => {
             }}>{n}</button
           >
         {/each}
-        <button class:on={customLength} onclick={() => (customLength = true)}>custom</button>
+        <button class="tbtn" class:on={customLength} onclick={() => (customLength = true)}>custom</button>
       </div>
       {#if customLength}
         <input type="number" min="20" max="1000" step="10" bind:value={settings.length} />
@@ -91,10 +92,10 @@ $effect(() => {
   <section>
     <h3>ヒント <span>hint</span></h3>
     <div class="seg">
-      <button class:on={settings.hint === "full"} onclick={() => (settings.hint = "full")}>romaji + meaning</button>
-      <button class:on={settings.hint === "romaji"} onclick={() => (settings.hint = "romaji")}>romaji</button>
-      <button class:on={settings.hint === "kana"} onclick={() => (settings.hint = "kana")}>kana only</button>
-      <button class:on={settings.hint === "off"} onclick={() => (settings.hint = "off")}>off</button>
+      <button class="tbtn" class:on={settings.hint === "full"} onclick={() => (settings.hint = "full")}>romaji + meaning</button>
+      <button class="tbtn" class:on={settings.hint === "romaji"} onclick={() => (settings.hint = "romaji")}>romaji</button>
+      <button class="tbtn" class:on={settings.hint === "kana"} onclick={() => (settings.hint = "kana")}>kana only</button>
+      <button class="tbtn" class:on={settings.hint === "off"} onclick={() => (settings.hint = "off")}>off</button>
     </div>
   </section>
 
@@ -103,10 +104,10 @@ $effect(() => {
     <div class="field">
       <span class="label">Layout</span>
       <div class="seg">
-        <button class:on={settings.display === "paragraph"} onclick={() => (settings.display = "paragraph")}
+        <button class="tbtn" class:on={settings.display === "paragraph"} onclick={() => (settings.display = "paragraph")}
           >paragraph</button
         >
-        <button class:on={settings.display === "ticker"} onclick={() => (settings.display = "ticker")}
+        <button class="tbtn" class:on={settings.display === "ticker"} onclick={() => (settings.display = "ticker")}
           >scrolling line</button
         >
       </div>
@@ -115,7 +116,7 @@ $effect(() => {
       <span class="label">Theme</span>
       <div class="seg">
         {#each [["system", "auto"], ["light", "light"], ["dark", "dark"]] as const as [v, label]}
-          <button class:on={settings.theme === v} onclick={() => (settings.theme = v)}>{label}</button>
+          <button class="tbtn" class:on={settings.theme === v} onclick={() => (settings.theme = v)}>{label}</button>
         {/each}
       </div>
     </div>
@@ -235,7 +236,7 @@ $effect(() => {
   input[type="number"] {
     background: var(--paper);
     border: 1px solid var(--faint);
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 7px 10px;
     transition: border-color 0.2s;
   }
@@ -251,35 +252,12 @@ $effect(() => {
   .seg {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    padding: 3px;
-    background: var(--paper);
-    border: 1px solid var(--faint);
-    border-radius: 10px;
-    width: fit-content;
-  }
-  .seg button {
-    border: none;
-    background: transparent;
-    padding: 5px 11px;
-    border-radius: 7px;
-    font-size: 13px;
-    color: var(--ink-soft);
-    transition:
-      background-color 0.2s var(--ease-out),
-      color 0.2s var(--ease-out);
-  }
-  .seg button:hover {
-    color: var(--ink);
-  }
-  .seg button.on {
-    background: var(--accent);
-    color: var(--paper-raised);
+    gap: 4px 18px;
   }
   .seg em {
     font-size: 10px;
     font-style: normal;
-    opacity: 0.7;
+    color: var(--muted);
     margin-left: 4px;
   }
   .fonts {
@@ -296,13 +274,10 @@ $effect(() => {
     text-align: left;
     background: var(--paper);
     border: 1px solid var(--faint);
-    border-radius: 10px;
-    transition:
-      border-color 0.2s,
-      transform 0.15s var(--ease-out);
+    border-radius: 4px;
+    transition: border-color 0.2s;
   }
   .font:hover {
-    transform: translateY(-1px);
     border-color: var(--muted);
   }
   .font.on {

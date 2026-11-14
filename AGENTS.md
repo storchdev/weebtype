@@ -87,5 +87,8 @@ data/              Jitendex JSON (gitignored, imported)
   `/home/hudson/Desktop/japanslop/10ff-yomitan` (content.js, deinflect.js).
 - Biome lints `.svelte` files without seeing the template, so unused-import/variable and
   `useConst` rules are off for `*.svelte` (in `biome.json`). Don't remove "unused" imports there by hand.
+- Buttons use the shared classes in `app.css`: `.tbtn` (text button, accent hairline underline
+  on hover, solid when `.on`) and `.pbtn` (the one solid primary action). No pill/oval outlines;
+  radii ≤ 4px. Don't restyle buttons per component.
 - Typing text renders as one `.cell` per kana/punct char or kanji group, wrapped in nowrap
   `.word` spans (`buildWords`) so lines break only between words.

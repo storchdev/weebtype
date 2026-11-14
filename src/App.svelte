@@ -153,20 +153,20 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
       <span class="word">weebtype<small>和文タイピング</small></span>
     </button>
     <nav>
-      <button class="chip" onclick={() => (settingsOpen = true)} title="Change test settings">
+      <button class="tbtn chip" onclick={() => (settingsOpen = true)} title="Change test settings">
         {LEVEL_JA[settings.level] ?? settings.level} · {settings.length}字{settings.topic
           ? ` · ${settings.topic}`
           : ""}
       </button>
       <button
-        class="icon"
+        class="tbtn"
         class:on={view === "history"}
         onclick={() => (view = view === "history" ? (passage ? "typing" : "history") : "history")}
         title="History">記録</button
       >
-      <button class="icon" onclick={() => (settingsOpen = true)} title="Settings (Esc)">設定</button>
+      <button class="tbtn" onclick={() => (settingsOpen = true)} title="Settings (Esc)">設定</button>
       <button
-        class="icon theme"
+        class="tbtn theme"
         onclick={() => (settings.theme = dark ? "light" : "dark")}
         title="Toggle theme"
         aria-label="Toggle theme"
@@ -253,7 +253,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
     <p>
       文章を作っています…<small>generating with {settings.backend}</small>
     </p>
-    <button onclick={useOffline}>use an offline sentence instead</button>
+    <button class="tbtn" onclick={useOffline}>use an offline sentence instead</button>
   </div>
 {/snippet}
 
@@ -344,37 +344,21 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
   nav {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 20px;
     /* keep clear of the branch */
     margin-right: clamp(0px, 14vw, 220px);
-    padding: 4px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--paper) 70%, transparent);
-  }
-  nav button {
-    background: none;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    padding: 5px 11px;
-    color: var(--ink-soft);
-    font-size: 13px;
-    transition:
-      border-color 0.2s,
-      color 0.2s,
-      background-color 0.2s;
-  }
-  nav button:hover,
-  nav button.on {
-    border-color: var(--faint);
-    color: var(--ink);
   }
   .chip {
-    color: var(--muted) !important;
+    color: var(--muted);
+    padding-right: 20px;
+    border-right: 1px solid var(--faint);
+  }
+  .chip::after {
+    right: 20px;
   }
   .theme {
     display: grid;
     place-items: center;
-    padding: 5px 8px !important;
   }
   .theme svg {
     fill: none;
@@ -389,7 +373,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
   .banner {
     margin: 16px auto 0;
     padding: 8px 14px;
-    border-radius: 8px;
+    border-radius: 4px;
     background: var(--accent-soft);
     color: var(--accent);
     font-size: 13px;
@@ -475,12 +459,8 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
   }
   .loader button {
     margin-top: 8px;
-    background: none;
-    border: none;
-    color: var(--muted);
     font-size: 12px;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    color: var(--muted);
   }
   footer {
     display: flex;

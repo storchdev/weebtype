@@ -108,9 +108,9 @@ function when(t: number): string {
   <header>
     <h2>記録 <span>history</span></h2>
     <div class="tools">
-      <button onclick={doExport} disabled={!entries.length}>export</button>
-      <button onclick={() => fileInput?.click()}>import</button>
-      <button class:danger={confirmClear} onclick={doClear} disabled={!entries.length}
+      <button class="tbtn" onclick={doExport} disabled={!entries.length}>export</button>
+      <button class="tbtn" onclick={() => fileInput?.click()}>import</button>
+      <button class="tbtn" class:danger={confirmClear} onclick={doClear} disabled={!entries.length}
         >{confirmClear ? "click again to clear" : "clear"}</button
       >
       <input type="file" accept="application/json,.json" hidden bind:this={fileInput} onchange={doImport} />
@@ -170,34 +170,15 @@ function when(t: number): string {
   }
   .tools {
     display: flex;
-    gap: 4px;
-    padding: 3px;
-    border: 1px solid var(--faint);
-    border-radius: 999px;
+    gap: 20px;
   }
-  .tools button {
-    background: none;
-    border: none;
-    border-radius: 999px;
-    padding: 4px 12px;
-    font-size: 12.5px;
-    color: var(--ink-soft);
-    transition:
-      background-color 0.2s,
-      color 0.2s;
+  .tools .danger,
+  .tools .danger:hover {
+    color: var(--accent);
   }
-  .tools button:hover:not(:disabled) {
-    color: var(--ink);
-    background: var(--faint);
-  }
-  .tools button:disabled {
-    color: var(--muted);
-    opacity: 0.5;
-    cursor: default;
-  }
-  .tools button.danger {
-    background: var(--accent);
-    color: var(--paper-raised);
+  .tools .danger::after {
+    transform: scaleX(1);
+    opacity: 1;
   }
   .status {
     margin: -6px 0 16px;

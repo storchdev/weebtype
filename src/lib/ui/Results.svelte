@@ -146,8 +146,8 @@ function fmtTime(s: number): string {
   </div>
 
   <div class="actions">
-    <button class="primary" onclick={onnext}>次へ <span>next</span><kbd>Enter</kbd></button>
-    <button onclick={onretry}>もう一度 <span>retry</span><kbd>Tab</kbd></button>
+    <button class="pbtn" onclick={onnext}>次へ <span>next</span><kbd>Enter</kbd></button>
+    <button class="tbtn" onclick={onretry}>もう一度 <span>retry</span><kbd>Tab</kbd></button>
   </div>
 </section>
 
@@ -339,49 +339,18 @@ function fmtTime(s: number): string {
 
   .actions {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: 24px;
     margin-top: 32px;
   }
-  .actions button {
-    display: flex;
+  .actions button span {
+    font-size: 11px;
+    opacity: 0.7;
+  }
+  .actions .tbtn {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    height: 36px;
-    padding: 0 8px 0 14px;
-    border-radius: 999px;
-    border: 1px solid var(--faint);
-    background: transparent;
-    color: var(--ink-soft);
-    font-size: 13px;
-    transition:
-      background-color 0.2s,
-      border-color 0.2s,
-      color 0.2s;
-  }
-  .actions button span {
-    color: var(--muted);
-    font-size: 11px;
-  }
-  .actions button:hover {
-    border-color: var(--muted);
-    color: var(--ink);
-  }
-  .actions .primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--paper-raised);
-  }
-  .actions .primary:hover {
-    border-color: var(--accent);
-    color: var(--paper-raised);
-  }
-  .actions .primary span {
-    color: color-mix(in srgb, var(--paper-raised) 75%, transparent);
-  }
-  .actions .primary kbd {
-    color: inherit;
-    background: transparent;
-    border-color: color-mix(in srgb, var(--paper-raised) 45%, transparent);
   }
   @media (max-width: 720px) {
     .detail {
