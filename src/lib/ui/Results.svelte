@@ -52,6 +52,15 @@ const trouble = $derived(
     })),
 );
 
+// The passage as words, with how often each one was missed (for the review column).
+const review = $derived(
+  session.passage.tokens.map((t, i) => ({
+    text: t.groups.map((g) => g.t).join(""),
+    reading: session.reading(i),
+    misses: stats.tokenMisses[i] ?? 0,
+  })),
+);
+
 function fmtTime(s: number): string {
   const m = Math.floor(s / 60);
   const r = Math.round(s % 60);
@@ -86,36 +95,59 @@ function fmtTime(s: number): string {
   </div>
 
   {#if curve}
-    <svg class="chart" viewBox="0 -6 {W} {H + 12}" preserveAspectRatio="none" aria-label="Speed over time">
-      <path class="area" d={curve.area} />
-      <line class="avg" x1="0" x2={W} y1={curve.avgY} y2={curve.avgY} />
-      <path class="line" d={curve.path} />
-    </svg>
+    <figure class="figure">
+      <svg class="chart" viewBox="0 -6 {W} {H + 6}" preserveAspectRatio="none" aria-label="Speed over time">
+        <defs>
+          <linearGradient id="speed-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" style="stop-color: var(--accent)" stop-opacity="0.22" />
+            <stop offset="1" style="stop-color: var(--accent)" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path class="area" d={curve.area} />
+        <line class="avg" x1="0" x2={W} y1={curve.avgY} y2={curve.avgY} />
+        <path class="line" d={curve.path} />
+      </svg>
+      <figcaption class="axis">
+        <span>0s</span>
+        <span class="avg-label"><i></i>average {Math.round(stats.kpm)} 字/分</span>
+        <span>{fmtTime(stats.seconds)}</span>
+      </figcaption>
+    </figure>
   {/if}
 
-  {#if session.passage.translation}
-    <p class="translation">{session.passage.translation}</p>
-  {/if}
-
-  {#if trouble.length}
-    <div class="trouble">
-      <h3>つまずいた言葉 <span>tricky words</span></h3>
-      <ul>
-        {#each trouble as t}
-          <li>
-            <span class="t-surface">{t.surface}</span>
-            {#if t.reading !== t.surface}<span class="t-reading">{t.reading}</span>{/if}
-            <span class="t-romaji">{t.romaji}</span>
-            <span class="t-miss">×{t.misses}</span>
-          </li>
-        {/each}
-      </ul>
+  <div class="detail">
+    <div class="col">
+      <h3 class="label">passage <span>文章</span></h3>
+      <p class="passage">
+        {#each review as w}{#if w.misses}<span class="missed" title="{w.reading} · ×{w.misses}">{w.text}</span
+            >{:else}{w.text}{/if}{/each}
+      </p>
+      {#if session.passage.translation}
+        <p class="translation">{session.passage.translation}</p>
+      {/if}
     </div>
-  {/if}
+    <div class="col side">
+      <h3 class="label">tricky words <span>つまずき</span></h3>
+      {#if trouble.length}
+        <ol class="trouble">
+          {#each trouble as t}
+            <li>
+              <span class="t-surface">{t.surface}</span>
+              <span class="t-reading">{t.reading !== t.surface ? t.reading : ""}</span>
+              <span class="t-romaji">{t.romaji}</span>
+              <span class="t-miss">×{t.misses}</span>
+            </li>
+          {/each}
+        </ol>
+      {:else}
+        <p class="clean">No misses — 全部正解.</p>
+      {/if}
+    </div>
+  </div>
 
   <div class="actions">
-    <button class="primary" onclick={onnext}>次へ <kbd>Enter</kbd></button>
-    <button onclick={onretry}>もう一度 <kbd>Tab</kbd></button>
+    <button class="primary" onclick={onnext}>次へ <span>next</span><kbd>Enter</kbd></button>
+    <button onclick={onretry}>もう一度 <span>retry</span><kbd>Tab</kbd></button>
   </div>
 </section>
 
@@ -176,22 +208,24 @@ function fmtTime(s: number): string {
     color: var(--ink);
     font-variant-numeric: tabular-nums;
   }
+  .figure {
+    margin: 32px 0 0;
+  }
   .chart {
     display: block;
     width: 100%;
-    height: 96px;
-    margin: 28px 0 8px;
+    height: 88px;
     overflow: visible;
   }
   .chart .line {
     fill: none;
     stroke: var(--accent);
-    stroke-width: 2;
+    stroke-width: 1.75;
     vector-effect: non-scaling-stroke;
     stroke-linejoin: round;
   }
   .chart .area {
-    fill: var(--accent-soft);
+    fill: url(#speed-fill);
   }
   .chart .avg {
     stroke: var(--muted);
@@ -199,87 +233,164 @@ function fmtTime(s: number): string {
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
   }
-  .translation {
-    color: var(--ink-soft);
-    font-style: italic;
-    margin: 20px 0 0;
-    max-width: 70ch;
+  .axis {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--faint);
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
-  .trouble h3 {
-    font-family: var(--title-font);
-    font-weight: 600;
-    font-size: 15px;
-    margin: 24px 0 8px;
-    color: var(--ink-soft);
+  .avg-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
-  .trouble h3 span {
+  .avg-label i {
+    width: 14px;
+    border-top: 1px dashed var(--muted);
+  }
+
+  .detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+    gap: 0 40px;
+    margin-top: 28px;
+  }
+  .side {
+    border-left: 1px solid var(--faint);
+    padding-left: 28px;
+  }
+  .label {
+    margin: 0 0 10px;
     font-family: var(--ui-font);
     font-weight: 400;
     font-size: 11px;
     color: var(--muted);
-    margin-left: 6px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
-  .trouble ul {
-    list-style: none;
-    padding: 0;
+  .label span {
+    margin-left: 6px;
+    letter-spacing: 0.04em;
+  }
+  .passage {
     margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    font-size: 16px;
+    line-height: 1.9;
+    color: var(--ink-soft);
+  }
+  .missed {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 5px;
+  }
+  .translation {
+    margin: 8px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .trouble {
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
   .trouble li {
-    display: flex;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
     align-items: baseline;
-    padding: 4px 10px;
-    border: 1px solid var(--faint);
-    border-radius: 999px;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--faint);
+  }
+  .trouble li:first-child {
+    padding-top: 0;
   }
   .t-surface {
-    font-size: 17px;
+    font-size: 16px;
+    color: var(--ink);
   }
   .t-reading {
-    color: var(--muted);
     font-size: 12px;
+    color: var(--muted);
   }
   .t-romaji {
     font-family: "M PLUS 1 Code", monospace;
-    color: var(--muted);
     font-size: 12px;
+    color: var(--muted);
   }
   .t-miss {
-    color: var(--accent);
+    min-width: 2.2em;
+    text-align: right;
     font-size: 12px;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
   }
+  .clean {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
   .actions {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     margin-top: 32px;
   }
   .actions button {
     display: flex;
-    gap: 10px;
     align-items: center;
-    padding: 8px 16px;
+    gap: 8px;
+    height: 36px;
+    padding: 0 8px 0 14px;
     border-radius: 999px;
     border: 1px solid var(--faint);
     background: transparent;
+    color: var(--ink-soft);
+    font-size: 13px;
     transition:
       background-color 0.2s,
       border-color 0.2s,
-      transform 0.15s var(--ease-out);
+      color 0.2s;
+  }
+  .actions button span {
+    color: var(--muted);
+    font-size: 11px;
   }
   .actions button:hover {
     border-color: var(--muted);
-    transform: translateY(-1px);
+    color: var(--ink);
   }
   .actions .primary {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--paper-raised);
   }
+  .actions .primary:hover {
+    border-color: var(--accent);
+    color: var(--paper-raised);
+  }
+  .actions .primary span {
+    color: color-mix(in srgb, var(--paper-raised) 75%, transparent);
+  }
   .actions .primary kbd {
     color: inherit;
-    border-color: color-mix(in srgb, var(--paper-raised) 50%, transparent);
+    background: transparent;
+    border-color: color-mix(in srgb, var(--paper-raised) 45%, transparent);
+  }
+  @media (max-width: 720px) {
+    .detail {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .side {
+      border-left: none;
+      padding-left: 0;
+    }
   }
 </style>

@@ -109,6 +109,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Results page redesign below the chart: gradient speed chart with time axis + labelled average, then a two-column review (passage with missed words underlined + translation | tricky-word rows) using the same small-caps labels and hairlines as the stats and dictionary panel; buttons match the UI scale.
+
 - 2026-11-14 — Layout pass from feedback: main content starts below the branch's lowest blossom (`--branch-w/--branch-h` shared CSS vars, `justify-content: safe center`, paragraph line count adapts to window height); progress is a full-width rule with stats above; dictionary card → in-page DictPanel; `kana` hint mode. Tatoeba: adjacent ruby segments merge into one word (彼|女 → 彼女); bare-kanji tokens look up their okurigana (歩|いて → 歩く) and the kana token shares the entry; kana tokens prefer the entry spelled in kana (の particle, not 野).
 
 - 2026-11-14 — Verified end to end: live `claude` (sonnet) passage in ~7–17 s cold, 0.2 s from prefetch; headless typing at full speed holds 16.7 ms frames (p99 16.8 ms, 0 dropped) in paragraph, ticker and reduced-motion. Vite/API pinned to 127.0.0.1 (Vite's `localhost` bound IPv6 only). README + GPLv3 LICENSE added.
