@@ -67,6 +67,8 @@ export function buildPrompt(level: Level, length: number, steer: string[]): stri
     "You write practice passages for a Japanese typing test.",
     `Write natural, interesting Japanese prose of roughly ${length} kana when read aloud (±20%), at ${LEVEL_DESC[level]}.`,
     ...steer,
+    "Write one cohesive passage, not a collection of unrelated practice sentences. If there are multiple sentences, each must build on the previous one.",
+    "Keep the same characters, setting, point of view and tense throughout. Develop one scene, short story or connected idea with a clear progression and a natural ending within the requested length.",
     "Avoid stock openings like 今日は, 私は…です or talk about the weather unless the subject is about it.",
     "Use complete sentences ending in 。, ！ or ？. Use 、 normally. You may use 「」 for quotes.",
     "Do NOT use: Latin letters, Arabic digits (write numbers in kanji), spaces, emoji, or symbols other than 、。！？「」ー.",

@@ -14,7 +14,7 @@ interface Pending {
   claimed: boolean;
 }
 
-const PREFETCH = 2;
+const PREFETCH = 1;
 
 function key(r: GenerateRequest): string {
   return JSON.stringify([r.backend, r.model.trim(), r.level, r.length, r.topic.trim()]);

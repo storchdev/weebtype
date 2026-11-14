@@ -26,7 +26,7 @@ bar / IME), and always shows an unobtrusive hint for the current word.
 | Readings source   | LLM returns segmented tokens with ruby-group readings (JSON schema enforced). Server **validates** each token against the dictionary (+ deinflection); invalid passages are repaired/retried once, then dropped                                                                                                            | LLM readings are usually right; dictionary catches mistakes                            |
 | Dictionary        | Reuse 10ff-yomitan data (Jitendex `dictionary.json`, `pitch.json`, `examples.json`) + port of Yomitan deinflector to TS. Data lives in `data/` (gitignored, ~65 MB), built from public Jitendex + Kanjium downloads by `bun run data:setup` (auto-run on first `bun start`/`bun dev`). Lookups happen **server-side**; the client only receives per-token annotations                              | Don't ship 65 MB to the browser                                                        |
 | Licensing         | Vendored Yomitan deinflector is GPLv3 → project is **GPLv3**. Jitendex data is CC BY-SA (attribution in README/about)                                                                                                                                                                                                      |                                                                                        |
-| LLM latency       | Server keeps a **prefetch queue** (default 2 passages per settings key) so "next test" is instant. Offline/failed LLM → fallback passages built from Tatoeba sentences in `examples.json` (already furigana-segmented)                                                                                                     | `claude -p` takes several seconds                                                      |
+| LLM latency       | Server keeps a **prefetch queue** of **1 passage per settings key** so "next test" is instant. Offline/failed LLM → fallback passages built from Tatoeba sentences in `examples.json` (already furigana-segmented) | User requested reducing the buffer from 2 to 1 to save AI usage; CLI generation takes several seconds |
 | LLM backends      | `claude -p --output-format json --json-schema … --tools ""` and `codex exec --output-schema <file> -o <file> --ephemeral --skip-git-repo-check -s read-only`. Backend + model are user settings                                                                                                                            | Both CLIs support structured output                                                    |
 | Difficulty        | Vocabulary level: JLPT **N5, N4, N3, N2, N1**, plus **Native** (literary/news). Optional free-text topic                                                                                                                                                                                                                   |                                                                                        |
 | Passage variety   | Server picks subject × form × narrator × tone from shuffle bags (`server/variety.ts`) and lists the last 8 subjects/openings in the prompt; no numeric seed | A seed number in the prompt is ignored by the model, so passages converged on the same few topics |
@@ -84,6 +84,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - [x] Server-side normalisation (katakana/hiragana readings, punctuation tokens, length trimming)
 - [x] Prefetch queue keyed by (backend, model, level, length, topic)
 - [x] Real passage variety: shuffle-bag directions + recent-passage avoidance (no fake seed)
+- [x] AI passages explicitly require connected sentences, consistent characters/setting and a natural progression; prefetch reduced to one spare passage
 - [x] Settings UI: backend, model, level, length, topic
 
 ### M3 — Dictionary + hints
@@ -135,6 +136,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - Furigana-over-kanji toggle on the target text for beginners?
 
 ## Log
+
+- 2026-11-14 — User reported excess AI usage and disconnected sentences: reduced prefetch from two spare passages to one at the user's request. Prompt now requires one cohesive passage with connected sentences, consistent characters/setting/viewpoint/tense and a natural ending within the target length.
 
 - 2026-11-14 — Proper nouns (健太, 由美…) get a dictionary line: Jitendex has no names, so the LLM now lists the names it used with a short English gloss (`names` in the schema) and `annotate` falls back to them. Tatoeba passages still show nothing for names.
 
