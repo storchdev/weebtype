@@ -92,14 +92,14 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - [x] Fonts (fontsource) + font picker + font-size slider, live preview
 - [x] Ticker mode
 - [x] SVG plum-blossom decoration + optional petals; checked in both themes
-- [ ] Animation pass: caret glide, group-complete fade, ticker slide, hint follow; profile for 60 fps
-- [ ] `prefers-reduced-motion` support
+- [x] Animation pass: caret glide, group-complete fade, ticker slide, hint follow; profile for 60 fps
+- [x] `prefers-reduced-motion` support
 
 ### M5 — Polish
 
 - [x] History view
 - [x] Keyboard shortcuts (Tab = restart, Esc = settings, Enter on results = next)
-- [ ] README with setup, licensing/attribution
+- [x] README with setup, licensing/attribution
 
 ## Open questions / later
 
@@ -108,6 +108,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - Furigana-over-kanji toggle on the target text for beginners?
 
 ## Log
+
+- 2026-11-14 — Verified end to end: live `claude` (sonnet) passage in ~7–17 s cold, 0.2 s from prefetch; headless typing at full speed holds 16.7 ms frames (p99 16.8 ms, 0 dropped) in paragraph, ticker and reduced-motion. Vite/API pinned to 127.0.0.1 (Vite's `localhost` bound IPv6 only). README + GPLv3 LICENSE added.
 
 - 2026-11-14 — Frontend v1: Svelte 5 typing view (per-cell inline-blocks grouped into unbreakable words so lines wrap between words and never start with 、。), caret/composition/hint all positioned with transform. Hint split: romaji+reading guide sits in the line gap under the current word; Jitendex card sits *below the text block* (follows the word horizontally) so it never covers text. `scripts/screenshot.ts` for headless visual checks.
 

@@ -102,7 +102,7 @@ const server = Bun.serve({
   },
 });
 
-const url = `http://localhost:${server.port}`;
+const url = `http://127.0.0.1:${server.port}`;
 console.log(`weebtype server on ${url}`);
 if (process.argv.includes("--open")) {
   const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";

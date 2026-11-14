@@ -28,7 +28,8 @@ const curve = $derived.by(() => {
   if (pts.length < 2) return null;
   const tMax = stats.seconds || 1;
   const vMax = Math.max(...pts.map((p) => p[1])) * 1.1 || 1;
-  const xs = pts.map(([t]) => (t / tMax) * W);
+  const t0 = pts[0]?.[0] ?? 0;
+  const xs = pts.map(([t]) => ((t - t0) / (tMax - t0 || 1)) * W);
   const path = pts
     .map(([, v], i) => `${i ? "L" : "M"}${(xs[i] as number).toFixed(1)},${(H - (v / vMax) * H).toFixed(1)}`)
     .join(" ");

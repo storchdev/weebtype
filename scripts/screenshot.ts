@@ -1,6 +1,6 @@
 // Visual check: screenshot the running app (bun serve / bun start) with headless Chromium.
 //   bun run scripts/screenshot.ts out.png [--theme dark] [--display ticker] [--hint romaji]
-//        [--font klee] [--type "kesa"] [--offline] [--settings] [--finish] [--url http://localhost:5174]
+//        [--font klee] [--type "kesa"] [--offline] [--settings] [--finish] [--url http://127.0.0.1:5174]
 // --offline serves Tatoeba/builtin passages instead of calling the LLM.
 
 import { chromium } from "playwright-core";
@@ -13,7 +13,7 @@ const opt = (name: string): string | undefined => {
 };
 const flag = (name: string) => args.includes(`--${name}`);
 
-const url = opt("url") ?? "http://localhost:5174";
+const url = opt("url") ?? "http://127.0.0.1:5174";
 const executablePath = process.env.CHROMIUM ?? "/usr/bin/chromium";
 const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage({
