@@ -136,6 +136,8 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-14 — Fix: AI passages could end with English for sentences the trim had cut. The model now returns `translations` (one per sentence); `translationFor` keeps those of the surviving sentences, and drops the translation if counts don't match on a trimmed passage. 「…。」と言った is one sentence.
+
 - 2026-11-14 — Tried holding the first mora of たい/さん/じゅう silent until the second was typed; user asked to revert it (each mora sounds as typed; the second glides via VCV).
 
 - 2026-11-14 — Singer fuses diphthongs (たい, こえ) and ん with the vowel before them via VCV transition samples; long-vowel holds use them too (no breathy "- う" re-attack).

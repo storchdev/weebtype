@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeTokens, splitOkurigana, trimToLength } from "../server/normalize.ts";
+import {
+  normalizeTokens,
+  sentenceEnds,
+  splitOkurigana,
+  translationFor,
+  trimToLength,
+} from "../server/normalize.ts";
 
 describe("splitOkurigana", () => {
   test("splits kana runs", () => {
@@ -71,4 +77,25 @@ test("trimToLength keeps the closing quote and never cuts inside one", () => {
   ];
   const cut = trimToLength(tokens, 10);
   expect(cut.map((t) => t.groups[0]?.t).join("")).toBe("「あいうえおかきくけこ。さしすせそ。」");
+});
+
+describe("translations follow the trim", () => {
+  const tok = (t: string, r = t) => ({ groups: [{ t, r }] });
+  const s1 = [tok("ねこ"), tok("。")];
+  const s2 = [tok("「"), tok("いぬ"), tok("。"), tok("」"), tok("と"), tok("いった"), tok("。")];
+  const s3 = [tok("とり"), tok("！")];
+  const all = [...s1, ...s2, ...s3];
+  test("sentence ends skip 。 inside quotes", () => {
+    expect(sentenceEnds(all)).toEqual([1, 8, 10]);
+  });
+  test("keeps only the kept sentences' English", () => {
+    expect(translationFor(["Cat.", '"Dog," he said.', "Bird!"], all, [...s1, ...s2])).toBe(
+      'Cat. "Dog," he said.',
+    );
+    expect(translationFor(["Cat.", '"Dog," he said.', "Bird!"], all, all)).toBe('Cat. "Dog," he said. Bird!');
+  });
+  test("count mismatch: whole passage keeps it, a trimmed one drops it", () => {
+    expect(translationFor(["Cat. Dog. Bird."], all, all)).toBe("Cat. Dog. Bird.");
+    expect(translationFor(["Cat. Dog. Bird."], all, s1)).toBe("");
+  });
 });

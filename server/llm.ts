@@ -7,16 +7,17 @@ import type { Backend, Level } from "../src/lib/core/types.ts";
 import type { RawToken } from "./normalize.ts";
 
 export interface LlmPassage {
-  translation: string;
+  /** One English translation per Japanese sentence, in order (so trimming can keep them in step). */
+  translations: string[];
   tokens: RawToken[];
 }
 
 export const PASSAGE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["translation", "tokens"],
+  required: ["translations", "tokens"],
   properties: {
-    translation: { type: "string" },
+    translations: { type: "array", items: { type: "string" } },
     tokens: {
       type: "array",
       items: {
@@ -65,7 +66,7 @@ export function buildPrompt(level: Level, length: number, steer: string[]): stri
     "Split groups as finely as possible: one group per kanji when its reading is separable (日本 → 日/に, 本/ほん),",
     "okurigana as separate groups (食べる → 食/た, べる/べる), and keep jukujikun/ateji together (今日/きょう, 大人/おとな).",
     "Punctuation is its own token with t = r = the mark. Concatenating every t must reproduce the passage exactly.",
-    "Readings must be correct for the context (e.g. 一日 as ついたち vs いちにち). `translation` is a natural English translation.",
+    "Readings must be correct for the context (e.g. 一日 as ついたち vs いちにち). `translations` has one natural English translation per Japanese sentence, in the same order (a quoted 「…。」 belongs to the sentence around it).",
   ].join("\n");
 }
 

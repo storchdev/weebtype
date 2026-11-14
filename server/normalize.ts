@@ -116,6 +116,7 @@ export function normalizeTokens(raw: RawToken[], checker: ReadingChecker | null)
 /** Trim a passage to roughly `target` kana, cutting at a sentence end. */
 const OPENERS = new Set(["「", "『", "（"]);
 const CLOSERS = new Set(["」", "』", "）"]);
+const QUOTATIVE = /^(と|って)/;
 
 /**
  * Cuts the passage at a sentence end near `target` kana. A sentence end inside a quote
@@ -123,29 +124,60 @@ const CLOSERS = new Set(["」", "』", "）"]);
  * (「…。」 never loses its 」).
  */
 export function trimToLength(tokens: Token[], target: number): Token[] {
+  const ends = new Set(sentenceEnds(tokens));
   let kana = 0;
   let lastEnd = -1;
+  for (let i = 0; i < tokens.length; i++) {
+    for (const g of (tokens[i] as Token).groups) kana += g.r.length;
+    if (ends.has(i)) {
+      if (kana >= target * 0.8) return tokens.slice(0, i + 1);
+      lastEnd = i;
+    }
+    if (kana > target * 1.5 && lastEnd >= 0) return tokens.slice(0, lastEnd + 1);
+  }
+  return tokens;
+}
+
+/**
+ * Indices of the tokens that end a top-level sentence: 。！？ outside quotes, or the
+ * last closing bracket right after one (「…。」 ends at 」).
+ */
+export function sentenceEnds(tokens: readonly Token[]): number[] {
+  const out: number[] = [];
   let depth = 0;
   let endPending = false; // just saw 。！？ — closers that follow still belong to it
+  const text = (t: Token | undefined) => t?.groups.map((g) => g.t).join("") ?? "";
   for (let i = 0; i < tokens.length; i++) {
-    const tok = tokens[i] as Token;
-    for (const g of tok.groups) kana += g.r.length;
-    const t = tok.groups.map((g) => g.t).join("");
+    const t = text(tokens[i]);
     if (OPENERS.has(t)) depth++;
     if (CLOSERS.has(t)) depth = Math.max(0, depth - 1);
     const isEnd = t === "。" || t === "！" || t === "？";
     if (isEnd || (endPending && CLOSERS.has(t))) {
       endPending = true;
-      const next = tokens[i + 1];
-      const closerFollows = next !== undefined && CLOSERS.has(next.groups.map((g) => g.t).join(""));
-      if (depth === 0 && !closerFollows) {
-        if (kana >= target * 0.8) return tokens.slice(0, i + 1);
-        lastEnd = i;
-      }
+      const next = text(tokens[i + 1]);
+      // 「…。」と言った continues the sentence through the quotative と/って
+      if (depth === 0 && !CLOSERS.has(next) && !(CLOSERS.has(t) && QUOTATIVE.test(next))) out.push(i);
     } else endPending = false;
-    if (kana > target * 1.5 && lastEnd >= 0) return tokens.slice(0, lastEnd + 1);
   }
-  return tokens;
+  return out;
+}
+
+/**
+ * English for the sentences that survived trimming. `perSentence` is the model's
+ * one-translation-per-sentence list for the untrimmed passage; when its count doesn't
+ * match the Japanese, only an untrimmed passage keeps it (all of it) — a translation
+ * with sentences that aren't in the text is worse than none.
+ */
+export function translationFor(
+  perSentence: readonly string[],
+  all: readonly Token[],
+  kept: readonly Token[],
+): string {
+  const total = sentenceEnds(all).length;
+  const n = sentenceEnds(kept).length;
+  const clean = perSentence.map((s) => s.trim()).filter(Boolean);
+  if (clean.length === total) return clean.slice(0, n).join(" ");
+  return kept.length === all.length ? clean.join(" ") : "";
 }
 
 export function countKana(tokens: Token[]): number {

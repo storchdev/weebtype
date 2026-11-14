@@ -5,7 +5,7 @@ import { isKana, isKanji, isPunct } from "../src/lib/core/kana.ts";
 import type { GenerateRequest, Passage, PassageResponse, Token } from "../src/lib/core/types.ts";
 import type { Dictionary } from "./dictionary.ts";
 import { buildPrompt, generate } from "./llm.ts";
-import { normalizeTokens, trimToLength } from "./normalize.ts";
+import { normalizeTokens, translationFor, trimToLength } from "./normalize.ts";
 import { BUILTIN, type Tatoeba } from "./tatoeba.ts";
 import { Variety } from "./variety.ts";
 
@@ -85,13 +85,14 @@ export class PassageService {
       if (norm.problems.length)
         console.warn(`[passages] accepted with problems: ${norm.problems.join("; ")}`);
       this.variety.record(direction, norm.tokens.map((t) => t.groups.map((g) => g.t).join("")).join(""));
+      const kept = trimToLength(norm.tokens, req.length);
       return {
         id: crypto.randomUUID(),
         source: req.backend,
         level: req.level,
         topic: req.topic.trim() || undefined,
-        translation: raw.translation,
-        tokens: this.annotate(trimToLength(norm.tokens, req.length)),
+        translation: translationFor(raw.translations ?? [], norm.tokens, kept),
+        tokens: this.annotate(kept),
       };
     }
     throw new Error(lastErr);
