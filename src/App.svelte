@@ -5,6 +5,7 @@ import type { Stats, TypingSession } from "./lib/core/session.ts";
 import type { HealthResponse, Passage } from "./lib/core/types.ts";
 import { fontFamily } from "./lib/fonts.ts";
 import { addHistory, type HistoryEntry, loadHistory } from "./lib/history.ts";
+import { playKey, preloadKeySounds } from "./lib/keysound.ts";
 import { currentModel, settings } from "./lib/settings.svelte.ts";
 import Battle from "./lib/ui/Battle.svelte";
 import HistoryPanel from "./lib/ui/HistoryPanel.svelte";
@@ -36,6 +37,9 @@ const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 let systemDark = $state(darkQuery.matches);
 darkQuery.addEventListener("change", (e) => (systemDark = e.matches));
 const dark = $derived(settings.theme === "dark" || (settings.theme === "system" && systemDark));
+$effect(() => {
+  if (settings.keySounds) preloadKeySounds();
+});
 $effect(() => {
   document.documentElement.dataset.theme = dark ? "dark" : "light";
 });
@@ -236,6 +240,7 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
             onrestart={startRun}
             onnew={() => void loadPassage()}
             onime={(on) => (imeOn = on)}
+            onkey={settings.keySounds ? (ok) => playKey(settings.keyVolume / 100, !ok) : undefined}
             onkana={settings.battle ? (k, done, total) => battle?.fire(k, done, total) : undefined}
           />
         {/key}

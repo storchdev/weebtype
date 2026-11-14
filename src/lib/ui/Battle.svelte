@@ -64,6 +64,7 @@ onMount(() => {
   return () => {
     window.removeEventListener("resize", onResize);
     clearShots();
+    singer.sleep();
   };
 });
 

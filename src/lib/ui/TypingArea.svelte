@@ -20,10 +20,24 @@ interface Props {
   onime: (on: boolean) => void;
   /** Newly completed kana (one call per accepted key that finishes any), with progress after it. */
   onkana?: (kana: string, done: number, total: number) => void;
+  /** Every typing key, accepted or not (for key sounds). */
+  onkey?: (ok: boolean) => void;
 }
 
-let { passage, hint, display, font, fontSize, active, onfinish, onrestart, onnew, onime, onkana }: Props =
-  $props();
+let {
+  passage,
+  hint,
+  display,
+  font,
+  fontSize,
+  active,
+  onfinish,
+  onrestart,
+  onnew,
+  onime,
+  onkana,
+  onkey,
+}: Props = $props();
 
 // A new TypingArea is mounted per run (parent wraps it in {#key}), so the
 // passage is fixed for this component's lifetime.
@@ -187,6 +201,7 @@ function onKey(e: KeyboardEvent): void {
   const before = cur;
   const doneBefore = snap.kanaDone;
   const ok = session.press(e.key, performance.now());
+  onkey?.(ok);
   snap = session.snapshot();
   if (onkana && snap.kanaDone > doneBefore) {
     onkana(session.target.slice(doneBefore, snap.kanaDone), snap.kanaDone, session.target.length);

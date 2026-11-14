@@ -1,6 +1,7 @@
 <script lang="ts">
 import { LEVELS } from "../core/types.ts";
 import { FONTS } from "../fonts.ts";
+import { playKey } from "../keysound.ts";
 import { FONT_SIZE_RANGE, LENGTH_PRESETS, saveSettings, settings } from "../settings.svelte.ts";
 import { singer } from "../singer.ts";
 
@@ -146,6 +147,27 @@ $effect(() => {
       <label class="field">
         <span class="label">Voice <small>{settings.battleVolume ? `${settings.battleVolume}%` : "muted"}</small></span>
         <input type="range" min="0" max="100" step="5" bind:value={settings.battleVolume} onchange={previewVoice} />
+      </label>
+    {/if}
+    <label class="field check">
+      <input
+        type="checkbox"
+        bind:checked={settings.keySounds}
+        onchange={() => settings.keySounds && playKey(settings.keyVolume / 100)}
+      />
+      <span>Keyboard sounds</span>
+    </label>
+    {#if settings.keySounds}
+      <label class="field">
+        <span class="label">Clicks <small>{settings.keyVolume ? `${settings.keyVolume}%` : "muted"}</small></span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="5"
+          bind:value={settings.keyVolume}
+          onchange={() => playKey(settings.keyVolume / 100)}
+        />
       </label>
     {/if}
   </section>

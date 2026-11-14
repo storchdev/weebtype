@@ -56,3 +56,7 @@ The dictionary data is not in this repo; `data:setup` downloads it from:
 
 Fonts (Noto Sans/Serif JP, Klee One, Zen Maru Gothic, Shippori Mincho, M PLUS 1 Code,
 Yuji Syuku, Dela Gothic One) are bundled through Fontsource under the SIL Open Font License.
+
+Keyboard sounds (`public/sounds/keys/`) are trimmed from
+[Keyboard soundpack 1](https://opengameart.org/content/keyboard-soundpack-1-typing-and-single-keystrokes)
+by unicaegames — CC0.

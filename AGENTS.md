@@ -61,10 +61,11 @@ server/            Bun.serve API (main.ts), LLM backends (llm.ts), passages + pr
 src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
 src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
                    PlumBranch, Petals, Battle)
-src/lib/*.ts       settings (runes, localStorage), api client, history, fonts, singer (Web Audio voice)
+src/lib/*.ts       settings (runes, localStorage), api client, history, fonts, singer (offline-rendered voice), keysound
 src/app.css        theme tokens (light/dark) + base styles
 scripts/           dev runner, data setup (download + pure converters in build-data.ts), screenshot
 tests/             bun tests for the core modules
+public/sounds/     CC0 keyboard clicks (credited in README)
 data/              dictionary/pitch/examples JSON (gitignored, built by data:setup)
 ```
 
@@ -99,5 +100,7 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   projectiles imperatively (WAAPI, transform/opacity) and only measures screen positions on
   mount/resize/new run — keep it that way. The voice is synthesized (`singer.ts` + pure
   `core/voice.ts`); don't add character art or voice samples from existing franchises.
+- Sound is **only** played via `<audio>` elements (files or rendered WAV blobs). Don't connect
+  live Web Audio to `ctx.destination` — it was silent on the user's Chromium/PipeWire.
 - Typing text renders as one `.cell` per kana/punct char or kanji group, wrapped in nowrap
   `.word` spans (`buildWords`) so lines break only between words.
