@@ -116,6 +116,16 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - [x] Keyboard sounds (opt-in, volume): random CC0 keystroke per key, duller on misses (`keysound.ts`)
 - [x] Battle mode: singer → flying kana → marshmallow boss HP bar; formant-synth voice + volume (`Battle.svelte`, `singer.ts`, `core/voice.ts`)
 
+### M7 — Feedback round (2026-11-14)
+
+- [x] Romaji: every phonetic spelling of a kana pair works without x/l (ディ `di`, トゥ `tu`, ぢゃ `ja`, いぇ `ye`, ぢ `ji`, づ `zu`, を `o`…)
+- [ ] Singer: long vowels (じゅう, きょう, とおい, ー) glide on as one held syllable instead of re-attacking a new `u`
+- [ ] Singer: voice range setting (lowest/highest note); default a bit lower than F4–G5
+- [ ] Battle: singer and boss larger; kana fly a low, nearly straight path so they don't cross the text
+- [ ] Battle layout: rebalance the dictionary panel vs. the battle stage so neither fights the text
+- [ ] Mobile: respectable layout on phones (≤ 480 px) and a way to type with the on-screen keyboard
+- [ ] Later: particle は sung as "wa" (and へ as "e")
+
 ## Open questions / later
 
 - JIS kana-layout direct input (not planned for v1)

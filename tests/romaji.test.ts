@@ -100,3 +100,29 @@ describe("romaji engine", () => {
     expect(new RomajiEngine("まっちゃ").guide(0, 4).rest).toBe("maccha");
   });
 });
+
+test("phonetic spellings of special kana pairs just work", () => {
+  const typeAll = (target: string, keys: string) => {
+    const e = new RomajiEngine(target);
+    for (const k of keys) if (!e.press(k).ok) return false;
+    return e.done;
+  };
+  for (const [t, k] of [
+    ["ちゃ", "cha"],
+    ["ディズニー", "dizuni-"],
+    ["トゥ", "tu"],
+    ["ドゥ", "du"],
+    ["ぢゃ", "ja"],
+    ["いぇ", "ye"],
+    ["はなぢ", "hanaji"],
+    ["つづく", "tsuzuku"],
+    ["ほんを", "honwo"],
+    ["ほんを", "hon'o"],
+    ["ウォ", "wo"],
+    ["ティー", "ti-"],
+    ["クォ", "kwo"],
+    ["スィ", "si"],
+    ["まっちゃ", "matcha"],
+  ] as const)
+    expect(typeAll(t, k)).toBe(true);
+});
