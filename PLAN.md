@@ -136,7 +136,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
-- 2026-11-14 — Fused syllables are one note: the first mora of たい/さん/じゅう waits silently for the second, then both sound together (user: "it should just play the whole syllable on the 2nd").
+- 2026-11-14 — Tried holding the first mora of たい/さん/じゅう silent until the second was typed; user asked to revert it (each mora sounds as typed; the second glides via VCV).
 
 - 2026-11-14 — Singer fuses diphthongs (たい, こえ) and ん with the vowel before them via VCV transition samples; long-vowel holds use them too (no breathy "- う" re-attack).
 
