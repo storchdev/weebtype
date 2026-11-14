@@ -1,0 +1,13 @@
+#!/bin/sh
+# Enforce: commits that change code/config must also update PLAN.md or AGENTS.md.
+# Escape hatch for doc-irrelevant commits: put [skip-docs] in the message.
+msg_file="$1"
+if grep -q '\[skip-docs\]' "$msg_file"; then exit 0; fi
+staged=$(git diff --cached --name-only)
+[ -z "$staged" ] && exit 0
+if echo "$staged" | grep -qxE 'PLAN\.md|AGENTS\.md'; then exit 0; fi
+# Only docs/learnings/lockfile changed? fine.
+if ! echo "$staged" | grep -vqE '^(README\.md|\.trail/|bun\.lock$|LICENSE)'; then exit 0; fi
+echo "commit rejected: code changed but neither PLAN.md nor AGENTS.md is staged." >&2
+echo "Update PLAN.md (tick items / log / decisions) or AGENTS.md, or add [skip-docs] if truly irrelevant." >&2
+exit 1
