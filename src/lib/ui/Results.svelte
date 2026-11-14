@@ -61,10 +61,16 @@ const review = $derived(
   })),
 );
 
-function fmtTime(s: number): string {
+/** Time as number/unit pairs, units styled small like everywhere else: 4.6秒, 1分05秒. */
+function timeParts(s: number): Array<[string, string]> {
   const m = Math.floor(s / 60);
   const r = Math.round(s % 60);
-  return m ? `${m}:${String(r).padStart(2, "0")}` : `${s.toFixed(1)}s`;
+  return m
+    ? [
+        [String(m), "分"],
+        [String(r).padStart(2, "0"), "秒"],
+      ]
+    : [[s.toFixed(1), "秒"]];
 }
 </script>
 
@@ -77,15 +83,15 @@ function fmtTime(s: number): string {
     <dl class="grid">
       <div>
         <dt>accuracy</dt>
-        <dd>{(stats.accuracy * 100).toFixed(1)}%</dd>
+        <dd>{(stats.accuracy * 100).toFixed(1)}<small>%</small></dd>
       </div>
       <div>
-        <dt>keys/min</dt>
-        <dd>{Math.round(stats.keysPerMin)}</dd>
+        <dt>keystrokes</dt>
+        <dd>{Math.round(stats.keysPerMin)}<small>打/分</small></dd>
       </div>
       <div>
         <dt>time</dt>
-        <dd>{fmtTime(stats.seconds)}</dd>
+        <dd>{#each timeParts(stats.seconds) as [n, u]}{n}<small>{u}</small>{/each}</dd>
       </div>
       <div>
         <dt>misses</dt>
@@ -108,9 +114,9 @@ function fmtTime(s: number): string {
         <path class="line" d={curve.path} />
       </svg>
       <figcaption class="axis">
-        <span>0s</span>
+        <span>0秒</span>
         <span class="avg-label"><i></i>average {Math.round(stats.kpm)} 字/分</span>
-        <span>{fmtTime(stats.seconds)}</span>
+        <span>{timeParts(stats.seconds).flat().join("")}</span>
       </figcaption>
     </figure>
   {/if}
@@ -206,6 +212,14 @@ function fmtTime(s: number): string {
     font-size: 22px;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
+  }
+  dd small {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0 3px;
+  }
+  dd small:last-child {
+    margin-right: 0;
   }
   .figure {
     margin: 32px 0 0;
