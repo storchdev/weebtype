@@ -1,5 +1,5 @@
-import { expect, test } from "bun:test";
-import { characterName, OtoIndex, parseOto } from "../src/lib/core/oto.ts";
+import { describe, expect, test } from "bun:test";
+import { characterName, noteHz, OtoIndex, parseOto, pitchTag } from "../src/lib/core/oto.ts";
 import { type Syllable, syllables } from "../src/lib/core/voice.ts";
 
 const OTO = [
@@ -46,4 +46,37 @@ test("pitch/expression suffixes are stripped, plain aliases win", () => {
   );
   expect(idx.find(syllables("か")[0] as Syllable)?.file).toBe("ka.wav");
   expect(idx.find(syllables("さ")[0] as Syllable)?.file).toBe("sa.wav");
+});
+
+describe("pitch sets", () => {
+  test("noteHz", () => {
+    expect(noteHz("A4")).toBe(440);
+    expect(noteHz("D5")).toBeCloseTo(587.33, 1);
+    expect(noteHz("S")).toBeNull();
+  });
+  test("pitchTag: suffix, folder, expression", () => {
+    expect(pitchTag("- かA4", "Kumi/_Core_A4")).toBe("A4");
+    expect(pitchTag("- か", "Kumi/_Core_D5")).toBe("D5");
+    expect(pitchTag("- か", "Kumi/_Core")).toBeNull();
+    expect(pitchTag("a かS", "Kumi/_Strong_Low")).toBe("expression");
+    expect(pitchTag("a かW", "Kumi/_Whisper_High")).toBe("expression");
+  });
+  test("find picks the set recorded nearest the target", () => {
+    const e = (alias: string, pitch?: string) => ({
+      file: `${pitch ?? "main"}/ka.wav`,
+      alias,
+      offset: 0,
+      consonant: 0,
+      cutoff: 0,
+      preutter: 0,
+      overlap: 0,
+      ...(pitch ? { pitch } : {}),
+    });
+    const idx = new OtoIndex([e("- か"), e("- かA4", "A4"), e("- かD5", "D5")]);
+    const ka = syllables("か", null)[0] as Syllable;
+    expect(idx.find(ka)?.file).toBe("main/ka.wav");
+    expect(idx.find(ka, 300, 294)?.file).toBe("main/ka.wav");
+    expect(idx.find(ka, 450, 294)?.file).toBe("A4/ka.wav");
+    expect(idx.find(ka, 700, 294)?.file).toBe("D5/ka.wav");
+  });
 });

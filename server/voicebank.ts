@@ -4,7 +4,7 @@
 
 import { readdir, stat } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
-import { baseAlias, characterName, type OtoEntry, parseOto, type Voicebank } from "../src/lib/core/oto.ts";
+import { characterName, type OtoEntry, parseOto, pitchTag, type Voicebank } from "../src/lib/core/oto.ts";
 
 export const VOICE_DIR = resolve(import.meta.dir, "..", "data", "voice");
 
@@ -33,34 +33,32 @@ async function walk(dir: string, depth = 0): Promise<string[]> {
 
 export async function loadVoicebank(root = VOICE_DIR): Promise<Voicebank | null> {
   const files = await walk(root);
-  const otos = files.filter(
-    (f) => f.toLowerCase().endsWith(`${sep}oto.ini`) || f.toLowerCase() === "oto.ini",
-  );
-  let best: OtoEntry[] = [];
-  let bestScore = 0;
-  let bestDir = "";
+  const otos = files.filter((f) => f.toLowerCase().endsWith(`${sep}oto.ini`));
+  const entries: OtoEntry[] = [];
+  const dirs = new Set<string>();
   for (const oto of otos) {
     const dir = relative(root, join(oto, "..")).split(sep).join("/");
-    const entries = parseOto(await readText(oto), dir);
-    const usable: OtoEntry[] = [];
-    for (const e of entries) if (await Bun.file(join(root, e.file)).exists()) usable.push(e);
-    // the natural set has plain aliases ("- か"); pitch/expression sets carry suffixes
-    const score = usable.filter((e) => baseAlias(e.alias) === e.alias).length * 4 + usable.length;
-    if (score > bestScore) {
-      bestScore = score;
-      best = usable;
-      bestDir = dir;
+    for (const e of parseOto(await readText(oto), dir)) {
+      // every pitch set sings; other expressions (strong, whisper…) don't
+      const tag = pitchTag(e.alias, dir);
+      if (tag === "expression") continue;
+      if (!(await Bun.file(join(root, e.file)).exists())) continue;
+      entries.push(tag ? { ...e, pitch: tag } : e);
+      dirs.add(dir);
     }
   }
-  if (best.length === 0) return null;
-  // character.txt sits in the bank root, which may be above the chosen pitch folder
+  if (entries.length === 0) return null;
+  // character.txt sits in the bank root: the shallowest one above the sample folders
   let name: string | null = null;
-  const parts = bestDir ? bestDir.split("/") : [];
-  for (let i = parts.length; i >= 0 && !name; i--) {
-    const p = join(root, ...parts.slice(0, i), "character.txt");
-    if (await Bun.file(p).exists()) name = characterName(await readText(p));
+  const chars = files
+    .filter((f) => f.endsWith(`${sep}character.txt`))
+    .sort((x, y) => x.split(sep).length - y.split(sep).length);
+  for (const c of chars) {
+    name = characterName(await readText(c));
+    if (name) break;
   }
-  return { name: name ?? (parts[0] || "voicebank"), entries: best };
+  const first = [...dirs][0] ?? "";
+  return { name: name ?? (first.split("/")[0] || "voicebank"), entries };
 }
 
 /** Resolves a sample path from the client, refusing anything outside the voice dir. */

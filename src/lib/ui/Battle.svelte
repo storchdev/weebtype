@@ -8,7 +8,7 @@
 // transform/opacity; the screen positions it needs are measured on mount/resize/run.
 
 import { onMount } from "svelte";
-import { accentContour } from "../core/accent.ts";
+import { accentMelody } from "../core/accent.ts";
 import type { Token } from "../core/types.ts";
 import { singer } from "../singer.ts";
 
@@ -24,7 +24,7 @@ interface Props {
 let { runId, volume, font, tokens }: Props = $props();
 
 /** Pitch per char of the session target (concatenated readings). */
-const contour = $derived(tokens ? accentContour(tokens) : []);
+const melody = $derived(tokens ? accentMelody(tokens) : []);
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -112,7 +112,7 @@ $effect(() => {
 /** Called by the typing view for each batch of newly completed kana. */
 export function fire(kana: string, done: number, of: number): void {
   total = of;
-  singer.sing(kana, contour.length >= done ? contour.slice(done - kana.length, done) : undefined);
+  singer.sing(kana, melody.length >= done ? melody.slice(done - kana.length, done) : undefined);
   singing = true;
   clearTimeout(singTimer);
   singTimer = setTimeout(() => (singing = false), 150);

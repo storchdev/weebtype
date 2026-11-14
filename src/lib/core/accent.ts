@@ -161,53 +161,67 @@ export function downstepFor(reading: string, entry: DictEntry | undefined): numb
   return Math.min(dict, len);
 }
 
-/** Per-character pitch (semitones above the low base) for the passage's target string. */
-export function accentContour(tokens: Token[]): number[] {
-  const out: number[] = [];
+interface Mark {
+  /** INITIAL_LOW, HIGH, or DROPPED_LOW minus the low morae since the drop. */
+  level: number;
+  /** Catathesis offset (≤ 0). */
+  register: number;
+  /** Accent phrase number, counted over the whole passage. */
+  phrase: number;
+  /** Sentence number (bumped after 。！？). */
+  sentence: number;
+}
+
+/** Accent marks per character of the target (shared by the contour and the melody). */
+function accentMarks(tokens: Token[]): Mark[] {
+  const out: Mark[] = [];
   let register = 0; // catathesis, ≤ 0
   let phrasePos = -1; // mora index within the current phrase; -1 = no phrase yet
   let dropped = false;
   let afterDrop = 0; // low morae since the drop
   let level = INITIAL_LOW;
+  let phrase = -1;
+  let sentence = 0;
 
-  const push = (chars: string, semis: number) => {
-    for (let i = 0; i < chars.length; i++) out.push(semis);
+  const push = (chars: string, lv: number) => {
+    for (let i = 0; i < chars.length; i++)
+      out.push({ level: lv, register, phrase: Math.max(0, phrase), sentence });
   };
   const startPhrase = () => {
     if (dropped) register = Math.max(-MAX_CATATHESIS, register - CATATHESIS);
     phrasePos = 0;
     dropped = false;
     afterDrop = 0;
+    phrase++;
   };
   const lowAfterDrop = () => Math.max(FLOOR, DROPPED_LOW - afterDrop++);
 
   for (const w of words(tokens)) {
     if (w.punct) {
-      push(w.reading, register + level);
+      push(w.reading, level);
       if ([...w.reading].some((c) => SENTENCE_END.has(c))) {
         register = 0;
         dropped = false;
+        sentence++;
       }
       phrasePos = -1; // next word starts fresh
       continue;
     }
     const morae = getKanaMorae(w.reading);
     const aux = AUXILIARIES[w.reading];
-    const isParticle = PARTICLES.has(w.reading) && !/[^぀-ゟ]/.test(w.reading);
+    const isParticle = PARTICLES.has(w.reading) && !/[^\u3040-\u309f]/.test(w.reading);
 
     if ((aux !== undefined || isParticle) && phrasePos >= 0) {
       // continue the phrase
       morae.forEach((m, i) => {
-        let semis: number;
-        if (dropped) semis = lowAfterDrop();
-        else if (phrasePos === 0) semis = INITIAL_LOW;
-        else semis = HIGH;
-        if (!dropped && aux !== undefined && i === aux - 1) {
-          dropped = true; // this mora is the last high one
-        }
+        let lv: number;
+        if (dropped) lv = lowAfterDrop();
+        else if (phrasePos === 0) lv = INITIAL_LOW;
+        else lv = HIGH;
+        if (!dropped && aux !== undefined && i === aux - 1) dropped = true; // last high mora
         phrasePos++;
-        level = semis;
-        push(m, register + semis);
+        level = lv;
+        push(m, lv);
       });
       continue;
     }
@@ -215,15 +229,75 @@ export function accentContour(tokens: Token[]): number[] {
     startPhrase();
     const n = aux ?? downstepFor(w.reading, w.entry);
     morae.forEach((m, i) => {
-      let semis: number;
-      if (dropped) semis = lowAfterDrop();
-      else if (i === 0 && n !== 1) semis = INITIAL_LOW;
-      else semis = HIGH;
+      let lv: number;
+      if (dropped) lv = lowAfterDrop();
+      else if (i === 0 && n !== 1) lv = INITIAL_LOW;
+      else lv = HIGH;
       if (n > 0 && i === n - 1) dropped = true;
       phrasePos++;
-      level = semis;
-      push(m, register + semis);
+      level = lv;
+      push(m, lv);
     });
   }
   return out;
+}
+
+/** Per-character pitch (semitones above the low base) for the passage's target string. */
+export function accentContour(tokens: Token[]): number[] {
+  return accentMarks(tokens).map((m) => m.register + m.level);
+}
+
+// ---- singing: the contour as a melody in a key ----
+
+/** Major pentatonic steps; degrees continue into the next octave. */
+const PENTATONIC = [0, 2, 4, 7, 9] as const;
+/** Tonic of the key, in semitones from A4 (F4). */
+export const TONIC = -4;
+/** Range the phrase tops wander in (scale degrees): C5 … G5 in F. */
+const TOP_MIN = 3;
+const TOP_MAX = 6;
+const TOP_START = 5;
+
+/** Semitones above the tonic of a pentatonic scale degree (may be negative). */
+export function degreeSemis(d: number): number {
+  const oct = Math.floor(d / PENTATONIC.length);
+  return oct * 12 + (PENTATONIC[d - oct * PENTATONIC.length] as number);
+}
+
+/** Degrees below the phrase top for each accent level. */
+function stepFor(level: number): number {
+  if (level >= HIGH) return 0;
+  if (level === INITIAL_LOW) return -1;
+  return -2 + Math.max(-1, level - DROPPED_LOW); // first low after the drop -2, then -3
+}
+
+/**
+ * The accent contour sung as a melody: notes in semitones from A4, snapped to F major
+ * pentatonic. Every rise and drop of the accent is kept (high = phrase top, the
+ * phrase-initial low one step under, the drop two steps under), while the phrase tops
+ * themselves walk gently — starting high on each sentence and tending downward — so it
+ * sounds like a tune rather than two alternating notes. Deterministic per passage.
+ */
+export function accentMelody(tokens: Token[]): number[] {
+  const marks = accentMarks(tokens);
+  const tops: number[] = [];
+  let top = TOP_START;
+  let lastSentence = 0;
+  let lastPhrase = -1;
+  return marks.map((m) => {
+    if (m.phrase !== lastPhrase) {
+      if (m.sentence !== lastSentence || lastPhrase < 0) top = TOP_START;
+      else {
+        // a small hash so the walk is varied but repeatable
+        const h = (Math.imul(m.phrase + 1, 2654435761) >>> 0) % 5;
+        const move = [-1, -1, 0, 1, -2][h] as number;
+        top = Math.max(TOP_MIN, Math.min(TOP_MAX, top + move));
+        if (top === tops[tops.length - 1] && top === tops[tops.length - 2]) top += top > TOP_MIN ? -1 : 1;
+      }
+      tops.push(top);
+      lastPhrase = m.phrase;
+      lastSentence = m.sentence;
+    }
+    return TONIC + degreeSemis(top + stepFor(m.level));
+  });
 }

@@ -102,9 +102,13 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
 - Battle mode: `TypingArea` reports newly completed kana via `onkana`; `Battle.svelte` creates
   projectiles imperatively (WAAPI, transform/opacity) and only measures screen positions on
   mount/resize/new run — keep it that way. The voice is synthesized (`singer.ts` + pure
-  `core/voice.ts`, pitch from the accent contour in `core/accent.ts`, which indexes the session target char-for-char); don't add character art or voice samples from existing franchises.
+  `core/voice.ts`, melody from `accentMelody` in `core/accent.ts`, which indexes the session target char-for-char); don't add character art or voice samples from existing franchises.
 - Voicebanks: `oto.ini`/`character.txt` are usually Shift-JIS (`server/voicebank.ts` decodes);
   aliases may carry pitch/expression suffixes (`- かA4`, `a かS`) — `baseAlias` strips them.
+  Pitch-suffixed/note-named folders are kept as pitch sets (`pitchTag`), other suffixes
+  (S/W expressions) are dropped; `OtoIndex.find(s, targetHz, mainHz)` picks the nearest set.
+- Singer notes are absolute semitones from A4 (`accentMelody`, F pentatonic). `Singer.play` makes a
+  new `Audio` per note from a cached blob URL so notes overlap — don't go back to one shared element.
 - Sound is **only** played via `<audio>` elements (files or rendered WAV blobs). Don't connect
   live Web Audio to `ctx.destination` — it was silent on the user's Chromium/PipeWire.
 - Typing text renders as one `.cell` per kana/punct char or kanji group, wrapped in nowrap

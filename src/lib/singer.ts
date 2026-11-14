@@ -7,7 +7,12 @@
 // <audio> element (cached per syllable + pitch). Live Web Audio output — even routed
 // into a media element — was silent on a real Chromium + PipeWire setup where <audio>
 // with a file source plays fine, so the voice only ever uses the latter.
+//
+// Pitches are absolute notes (semitones from A4) in F major pentatonic: the battle passes
+// the passage's accent melody (core/accent.ts accentMelody). Notes are polyphonic — each
+// rings out to its end even when the next starts — so fast typing doesn't cut them off.
 
+import { TONIC } from "./core/accent.ts";
 import { estimateF0 } from "./core/f0.ts";
 import { type OtoEntry, OtoIndex, type Voicebank } from "./core/oto.ts";
 import { Melody, type Onset, type Syllable, syllables, type Vowel } from "./core/voice.ts";
@@ -65,9 +70,15 @@ function noiseFor(s: Syllable): { freq: number; q: number; dur: number; gain: nu
   }
 }
 
-/** A4. The melody walks two octaves of pentatonic up from here. */
+/** A4: note numbers are semitones from here. */
 const BASE_HZ = 440;
 const NOTE_LEN = 0.17;
+/** Voicebank notes keep more of the recorded vowel, so they sound sung, not clipped. */
+const BANK_NOTE_LEN = 0.3;
+/** Most consonant lead-in kept from a sample (cuts breaths recorded before it). */
+const MAX_LEAD = 0.11;
+/** Notes allowed to ring at once; the oldest is stopped beyond this. */
+const MAX_VOICES = 6;
 const SAMPLE_RATE = 44100;
 /** Longest consonant lead-in + note + release. */
 const RENDER_LEN = 0.06 + NOTE_LEN + 0.12;
@@ -75,9 +86,6 @@ const RENDER_LEN = 0.06 + NOTE_LEN + 0.12;
 const SCOOP = 1.5;
 /** Gap between syllables completed by one key (e.g. ん + next kana). */
 const STAGGER_MS = 85;
-
-/** Where the accent contour's low base sits, in semitones above BASE_HZ. */
-const SPEECH_BASE = 2;
 
 const hzOf = (semis: number) => BASE_HZ * 2 ** (semis / 12);
 
@@ -224,15 +232,17 @@ function sampleF0(s: Sample, e: OtoEntry): number | null {
   return win.length > 512 ? estimateF0(win, s.rate) : null;
 }
 
-/** All notes are pitched relative to this (Hz): the bank's own "a", so shifts stay small. */
-let bankRef: Promise<number> | null = null;
-function bankRefHz(bank: LoadedBank): Promise<number> {
-  bankRef ??= (async () => {
+/** Pitch of the bank's untagged (main) set, measured on its "a"; tagged sets are named by note. */
+let mainRef: Promise<number | null> | null = null;
+function mainHz(bank: LoadedBank): Promise<number | null> {
+  mainRef ??= (async () => {
+    // without a target, find() prefers the untagged set
     const e = bank.index.find({ kana: "あ", onset: "none", consonant: "", vowel: "a", at: 0 });
-    const s = e ? await loadSample(e.file) : null;
-    return (s && e && sampleF0(s, e)) || hzOf(SPEECH_BASE + 3);
+    if (!e || e.pitch) return null;
+    const s = await loadSample(e.file);
+    return s ? sampleF0(s, e) : null;
   })();
-  return bankRef;
+  return mainRef;
 }
 
 /** Cuts a note from a voicebank sample and resamples it to `targetHz`. */
@@ -242,9 +252,12 @@ async function renderSample(e: OtoEntry, s: Sample, targetHz: number): Promise<F
   const total = s.data.length / s.rate;
   const off = e.offset / 1000;
   const end = e.cutoff < 0 ? off - e.cutoff / 1000 : total - e.cutoff / 1000;
-  const lead = Math.max(e.consonant, e.preutter) / 1000;
+  const fullLead = Math.max(e.consonant, e.preutter) / 1000;
+  // start at most MAX_LEAD before the vowel: anything earlier is breath/silence
+  const lead = Math.min(fullLead, MAX_LEAD);
+  const start = off + fullLead - lead;
   // consonant as recorded, then about one note of vowel (both in source time)
-  const srcDur = Math.max(0.05, Math.min(end - off, lead + (NOTE_LEN + 0.06) * rate));
+  const srcDur = Math.max(0.05, Math.min(end - start, lead + (BANK_NOTE_LEN + 0.08) * rate));
   const outDur = srcDur / rate;
   const ctx = new OfflineAudioContext(1, Math.ceil(SAMPLE_RATE * (outDur + 0.01)), SAMPLE_RATE);
   const buf = ctx.createBuffer(1, s.data.length, s.rate);
@@ -255,10 +268,10 @@ async function renderSample(e: OtoEntry, s: Sample, targetHz: number): Promise<F
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, 0);
   g.gain.linearRampToValueAtTime(1, 0.006);
-  g.gain.setValueAtTime(1, Math.max(0.01, outDur - 0.07));
+  g.gain.setValueAtTime(1, Math.max(0.01, outDur - 0.12));
   g.gain.linearRampToValueAtTime(0, outDur);
   src.connect(g).connect(ctx.destination);
-  src.start(0, off, srcDur);
+  src.start(0, start, srcDur);
   const data = (await ctx.startRendering()).getChannelData(0);
   let peak = 0;
   for (const v of data) peak = Math.max(peak, Math.abs(v));
@@ -268,41 +281,42 @@ async function renderSample(e: OtoEntry, s: Sample, targetHz: number): Promise<F
 
 export class Singer {
   private readonly melody = new Melody();
-  private lastSemis = 4;
+  private lastSemis = 0;
   private lastVowel: Vowel | null = null;
   private volume = 0.4;
-  private readonly cache = new Map<string, Promise<HTMLAudioElement | null>>();
-  /** The note currently sounding; stopped when the next starts (monophonic). */
-  private current: HTMLAudioElement | null = null;
+  /** Rendered notes as blob URLs; each play gets its own element so notes overlap. */
+  private readonly cache = new Map<string, Promise<string | null>>();
+  /** Notes still sounding, oldest first. */
+  private readonly ringing: HTMLAudioElement[] = [];
 
   setVolume(v: number): void {
     this.volume = Math.max(0, Math.min(1, v));
   }
 
   /**
-   * Sing newly typed kana. `tones` (semitones per char of `text`, from the pitch-accent
-   * contour) set the pitch; without them a pentatonic melody wanders instead.
+   * Sing newly typed kana. `notes` (semitones from A4 per char of `text`, from the
+   * passage's accent melody) set the pitch; without them a pentatonic melody wanders.
    */
-  sing(text: string, tones?: readonly number[]): void {
+  sing(text: string, notes?: readonly number[]): void {
     if (this.volume <= 0) return;
     const sylls = syllables(text, this.lastVowel);
     if ([...text].some((c) => "、。！？」".includes(c))) this.melody.cadence();
     sylls.forEach((s, i) => {
       const delay = i * STAGGER_MS;
       if (s.vowel === null) {
-        // っ: a held breath — just cut the previous note
-        setTimeout(() => this.current?.pause(), delay);
+        // っ: a held breath — stop the note before it
+        setTimeout(() => this.ringing[this.ringing.length - 1]?.pause(), delay);
         return;
       }
       if (s.vowel !== "n") this.lastVowel = s.vowel;
       // ー holds the same pitch; everything else takes the next melody note
-      const tone = tones?.[s.at];
+      const note = notes?.[s.at];
       const semis =
-        tone !== undefined
-          ? SPEECH_BASE + tone
+        note !== undefined
+          ? note
           : s.kana === "ー" || s.kana === "〜"
             ? this.lastSemis
-            : this.melody.next();
+            : TONIC + Math.min(16, this.melody.next());
       this.lastSemis = semis;
       this.play(s, semis, delay);
     });
@@ -311,10 +325,10 @@ export class Singer {
   /** A short "ra-ra-ra" so the volume can be checked from settings. */
   preview(): void {
     this.melody.reset();
-    // a little accent-like phrase: low, up, up, held
-    const tones = [0, 3, 3, 3];
+    // an accent-like phrase in F: D5 up to F5, held
+    const notes = [5, 8, 8, 8];
     ["ら", "ら", "ら", "ー"].forEach((k, i) => {
-      setTimeout(() => this.sing(k, [tones[i] as number]), i * 160);
+      setTimeout(() => this.sing(k, [notes[i] as number]), i * 170);
     });
   }
 
@@ -323,53 +337,53 @@ export class Singer {
     this.lastVowel = null;
   }
 
-  /** Stop any sounding note (battle mode closed). */
+  /** Stop every sounding note (battle mode closed). */
   sleep(): void {
-    this.current?.pause();
-    this.current = null;
+    for (const a of this.ringing) a.pause();
+    this.ringing.length = 0;
   }
 
-  private async element(s: Syllable, semis: number): Promise<HTMLAudioElement | null> {
-    const bank = await voicebank();
-    const entry = bank?.index.find(s) ?? null;
-    const key = entry
-      ? `${entry.file}|${entry.alias}|${semis}`
-      : `${s.onset}|${s.consonant}|${s.vowel}|${semis}`;
-    let el = this.cache.get(key);
-    if (!el) {
-      el = (async () => {
-        let data: Float32Array | null = null;
-        if (bank && entry) {
-          const sample = await loadSample(entry.file);
-          // the accent contour's middle lands on the bank's own pitch
-          if (sample)
-            data = await renderSample(
-              entry,
-              sample,
-              (await bankRefHz(bank)) * 2 ** ((semis - SPEECH_BASE - 3) / 12),
-            );
-        }
-        data ??= await renderSyllable(s, semis);
-        const a = new Audio(URL.createObjectURL(encodeWav(data, SAMPLE_RATE)));
-        a.preload = "auto";
-        return a;
-      })().catch(() => null);
-      this.cache.set(key, el);
-    }
-    return el;
+  private url(s: Syllable, semis: number): Promise<string | null> {
+    return voicebank().then(async (bank) => {
+      const hz = hzOf(semis);
+      const entry = bank ? bank.index.find(s, hz, await mainHz(bank)) : null;
+      const key = entry
+        ? `${entry.file}|${entry.alias}|${semis}`
+        : `${s.onset}|${s.consonant}|${s.vowel}|${semis}`;
+      let url = this.cache.get(key);
+      if (!url) {
+        url = (async () => {
+          let data: Float32Array | null = null;
+          if (entry) {
+            const sample = await loadSample(entry.file);
+            if (sample) data = await renderSample(entry, sample, hz);
+          }
+          data ??= await renderSyllable(s, semis);
+          return URL.createObjectURL(encodeWav(data, SAMPLE_RATE));
+        })().catch(() => null);
+        this.cache.set(key, url);
+      }
+      return url;
+    });
   }
 
   private play(s: Syllable, semis: number, delay: number): void {
     const due = performance.now() + delay;
-    void this.element(s, semis).then((a) => {
-      if (!a) return;
+    void this.url(s, semis).then((url) => {
+      if (!url) return;
       setTimeout(
         () => {
-          if (this.current && this.current !== a) this.current.pause();
-          this.current = a;
+          const a = new Audio(url);
           a.volume = Math.min(1, this.volume ** 1.5 * 0.85);
-          a.currentTime = 0;
-          void a.play().catch(() => {});
+          const done = () => {
+            const i = this.ringing.indexOf(a);
+            if (i >= 0) this.ringing.splice(i, 1);
+          };
+          a.addEventListener("ended", done, { once: true });
+          a.addEventListener("pause", done, { once: true });
+          this.ringing.push(a);
+          while (this.ringing.length > MAX_VOICES) this.ringing.shift()?.pause();
+          void a.play().catch(done);
         },
         Math.max(0, due - performance.now()),
       );

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { accentContour, downstepFor } from "../src/lib/core/accent.ts";
+import { accentContour, accentMelody, downstepFor } from "../src/lib/core/accent.ts";
 import type { DictEntry, Token } from "../src/lib/core/types.ts";
 
 const entry = (
@@ -84,5 +84,43 @@ describe("accentContour", () => {
     const e = entry("歩く", "あるく", 2, "歩いて");
     // 歩|いて → あるいて, godan te-form keeps accent 2 (aru^ite)
     expect(shape([tok("ある", e, "歩"), tok("いて", e)])).toBe("LHLL");
+  });
+});
+
+describe("accentMelody", () => {
+  const F_PENT = new Set([0, 2, 4, 7, 9].map((x) => x));
+  const inKey = (semisFromA4: number) => F_PENT.has((((semisFromA4 + 4) % 12) + 12) % 12);
+  const passage = [
+    tok("てんき", entry("天気", "てんき", 1), "天気"),
+    tok("が"),
+    tok("いい"),
+    tok("ので"),
+    tok("、"),
+    tok("さかな", entry("魚", "さかな", 0), "魚"),
+    tok("を"),
+    tok("たべます", entry("食べる", "たべる", 2, "食べます"), "食べます"),
+    tok("。"),
+  ];
+  test("every note is in F major pentatonic", () => {
+    for (const n of accentMelody(passage)) expect(inKey(n)).toBe(true);
+  });
+  test("keeps the accent shape: rises and drops in the same places", () => {
+    const m = accentMelody(passage);
+    const c = accentContour(passage);
+    for (let i = 1; i < c.length; i++) {
+      const sameWordish = Math.sign((c[i] as number) - (c[i - 1] as number));
+      const mel = Math.sign((m[i] as number) - (m[i - 1] as number));
+      // within a phrase the melody moves in the contour's direction
+      // (the melody bottoms out after a drop where speech keeps sinking a little)
+      if (sameWordish !== 0 && i !== 5 && i !== 9 && i !== 10) {
+        expect(mel === sameWordish || (sameWordish < 0 && mel === 0)).toBe(true);
+      }
+    }
+  });
+  test("stays in a singable range (F4–G5)", () => {
+    for (const n of accentMelody(passage)) {
+      expect(n).toBeGreaterThanOrEqual(-4);
+      expect(n).toBeLessThanOrEqual(10);
+    }
   });
 });
