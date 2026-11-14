@@ -2,8 +2,9 @@
 // vowel) and a small pentatonic melody that wanders as you type. The Web Audio
 // side lives in src/lib/singer.ts.
 
-import { isPunct, toHiragana } from "./kana.ts";
+import { isKana, isPunct, toHiragana } from "./kana.ts";
 import { splitUnits } from "./romaji.ts";
+import type { Token } from "./types.ts";
 
 export type Vowel = "a" | "i" | "u" | "e" | "o";
 
@@ -70,9 +71,15 @@ function onsetOf(c: string): Onset {
 
 /**
  * Splits newly typed kana into sung syllables. `prev` is the last sung vowel, so a
- * long-vowel mark (ー) continues it. Punctuation and unknown characters are skipped.
+ * long-vowel mark (ー) continues it. A vowel kana that lengthens the one before it
+ * (じゅう, せい) is held only where `lengthen(at)` says so — see `longVowelMask`.
+ * Punctuation and unknown characters are skipped.
  */
-export function syllables(text: string, prev: Vowel | null = null): Syllable[] {
+export function syllables(
+  text: string,
+  prev: Vowel | null = null,
+  lengthen: (at: number) => boolean = () => false,
+): Syllable[] {
   const out: Syllable[] = [];
   let last = prev;
   let at = 0;
@@ -106,7 +113,7 @@ export function syllables(text: string, prev: Vowel | null = null): Syllable[] {
     if (!VOWELS.includes(v) || r.length === 0) continue; // digits, latin…
     const consonant = r.slice(0, -1);
     const lengthens = LENGTHENS[toHiragana(u.kana)];
-    if (last && lengthens?.includes(last)) {
+    if (last && lengthens?.includes(last) && lengthen(here)) {
       // おう is sung "oo", せい "ee": keep the previous vowel and just hold it
       out.push({ kana: u.kana, onset: "none", consonant: "", vowel: last, at: here, hold: true });
       continue;
@@ -116,6 +123,25 @@ export function syllables(text: string, prev: Vowel | null = null): Syllable[] {
     out.push({ kana: u.kana, onset: onsetOf(consonant), consonant, vowel: v as Vowel, at: here, ...from });
     last = v as Vowel;
   }
+  return out;
+}
+
+/**
+ * Per char of the passage target (readings joined): true where a vowel kana lengthens
+ * the mora before it *inside one kanji's reading* (生/せい, 中/じゅう, 父/とう). Across
+ * kanji or word boundaries (毛色 け|いろ, 家 いえ + …) and in plain kana the vowels are
+ * sung as written — guessing there was wrong too often.
+ */
+export function longVowelMask(tokens: readonly Token[]): boolean[] {
+  const out: boolean[] = [];
+  for (const t of tokens)
+    for (const g of t.groups) {
+      const base = out.length;
+      for (let i = 0; i < g.r.length; i++) out.push(false);
+      if ([...g.t].every((c) => isKana(c) || isPunct(c))) continue;
+      for (const s of syllables(g.r, null, () => true))
+        if (s.hold && s.kana !== "ー" && s.kana !== "〜") out[base + s.at] = true;
+    }
   return out;
 }
 

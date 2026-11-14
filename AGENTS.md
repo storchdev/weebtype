@@ -108,6 +108,8 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   aliases may carry pitch/expression suffixes (`- かA4`, `a かS`) — `baseAlias` strips them.
   Pitch-suffixed/note-named folders are kept as pitch sets (`pitchTag`), other suffixes
   (S/W expressions) are dropped; `OtoIndex.find(s, targetHz, mainHz)` picks the nearest set.
+  Long vowels (せい sung "see", じゅう "juu") are held **only inside one kanji's reading**
+  (`longVowelMask`, passed by Battle to `sing`); elsewhere vowels are sung as written. ー always holds.
   Morae that continue a vowel — diphthong second halves (たい, こえ), ん after a vowel (`Syllable.from`)
   and long-vowel holds — use the bank's VCV transition (`a い`, `a ん`, `u う`) with a soft entry, and
   fade out the previous note instead of re-attacking.

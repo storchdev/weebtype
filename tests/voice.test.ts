@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Melody, SCALE, syllables } from "../src/lib/core/voice.ts";
+import { longVowelMask, Melody, SCALE, syllables } from "../src/lib/core/voice.ts";
 
 const brief = (t: string, prev: Parameters<typeof syllables>[1] = null) =>
   syllables(t, prev).map((s) => `${s.onset}:${s.consonant}:${s.vowel}`);
@@ -57,23 +57,39 @@ describe("melody", () => {
   });
 });
 
-test("long vowels hold the previous syllable instead of a new one", () => {
-  const juu = syllables("じゅう");
-  expect(juu.map((s) => [s.kana, s.vowel, !!s.hold])).toEqual([
+test("long vowels hold only where allowed", () => {
+  const yes = () => true;
+  expect(syllables("じゅう", null, yes).map((s) => [s.kana, s.vowel, !!s.hold])).toEqual([
     ["じゅ", "u", false],
     ["う", "u", true],
   ]);
   // across separate calls (typed one kana at a time)
-  expect(syllables("う", "o")[0]?.hold).toBe(true);
-  expect(syllables("い", "e")[0]).toMatchObject({ vowel: "e", hold: true });
-  expect(syllables("い", "a")[0]?.hold).toBeFalsy();
+  expect(syllables("う", "o", yes)[0]?.hold).toBe(true);
+  expect(syllables("い", "e", yes)[0]).toMatchObject({ vowel: "e", hold: true });
+  expect(syllables("い", "a", yes)[0]?.hold).toBeFalsy();
+  // by default vowels are sung as written; ー always holds
+  expect(syllables("せい")[1]).toMatchObject({ vowel: "i", from: "e" });
   expect(syllables("ー", "a")[0]?.hold).toBe(true);
+});
+
+test("longVowelMask: only inside one kanji's reading", () => {
+  const tk = (...groups: Array<[string, string]>) => ({ groups: groups.map(([t, r]) => ({ t, r })) });
+  // 先生 せん|せい → い of せい; 毛色 け|いろ → nothing; kana いう → nothing; 中 じゅう → う
+  const mask = longVowelMask([
+    tk(["先", "せん"], ["生", "せい"]),
+    tk(["毛", "け"], ["色", "いろ"]),
+    tk(["いう", "いう"]),
+    tk(["中", "じゅう"]),
+  ]);
+  const target = "せんせいけいろいうじゅう";
+  expect([...target].filter((_, i) => mask[i]).join("")).toBe("いう");
+  expect(mask[3]).toBe(true); // せい's い
+  expect(mask[11]).toBe(true); // じゅう's う
 });
 
 test("diphthongs and ん glide from the vowel before them", () => {
   const s = syllables("たいさんあお");
   expect(s.map((x) => x.from ?? "-")).toEqual(["-", "a", "-", "a", "-", "a"]);
-  // after ん nothing glides; long vowels still hold
+  // after ん nothing glides
   expect(syllables("んい")[1]?.from).toBeUndefined();
-  expect(syllables("せい")[1]?.hold).toBe(true);
 });

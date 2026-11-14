@@ -10,6 +10,7 @@
 import { onMount } from "svelte";
 import { accentMelody, type VoiceRange } from "../core/accent.ts";
 import type { Token } from "../core/types.ts";
+import { longVowelMask } from "../core/voice.ts";
 import { singer } from "../singer.ts";
 
 interface Props {
@@ -27,6 +28,7 @@ let { runId, volume, font, tokens, range }: Props = $props();
 
 /** Note per char of the session target (concatenated readings). */
 const melody = $derived(tokens ? accentMelody(tokens, range) : []);
+const longVowels = $derived(tokens ? longVowelMask(tokens) : []);
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -115,7 +117,12 @@ $effect(() => {
 /** Called by the typing view for each batch of newly completed kana. */
 export function fire(kana: string, done: number, of: number): void {
   total = of;
-  singer.sing(kana, melody.length >= done ? melody.slice(done - kana.length, done) : undefined);
+  const from = done - kana.length;
+  singer.sing(
+    kana,
+    melody.length >= done ? melody.slice(from, done) : undefined,
+    longVowels.slice(from, done),
+  );
   singing = true;
   clearTimeout(singTimer);
   singTimer = setTimeout(() => (singing = false), 150);

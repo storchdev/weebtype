@@ -339,9 +339,10 @@ export class Singer {
    * Sing newly typed kana. `notes` (semitones from A4 per char of `text`, from the
    * passage's accent melody) set the pitch; without them a pentatonic melody wanders.
    */
-  sing(text: string, notes?: readonly number[]): void {
+  sing(text: string, notes?: readonly number[], long?: readonly boolean[]): void {
     if (this.volume <= 0) return;
-    const sylls = syllables(text, this.lastVowel);
+    // `long`: per char of `text`, a long vowel inside a kanji reading (longVowelMask)
+    const sylls = syllables(text, this.lastVowel, (at) => long?.[at] === true);
     if ([...text].some((c) => "、。！？」".includes(c))) this.melody.cadence();
     sylls.forEach((s, i) => {
       const delay = i * STAGGER_MS;
