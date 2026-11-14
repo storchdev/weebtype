@@ -116,6 +116,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-13 — Battle voice: one shared AudioContext (resumed if created suspended), settings preview sings ら・ら・ら on toggling the mode or releasing the Voice slider, max gain lowered so 100% no longer clips; dropped the description under the toggle.
 - 2026-11-13 — Battle mode (opt-in, 遊び section of settings): kana fly from an original singer to a marshmallow boss (HP = passage, expressions: normal / worried ≤30% / ouch on hit / KO with crown knocked off + 撃破 stamp, stays KO'd on results, bounces back on the next run). Voice is synthesized per kana (formants per vowel, noise per consonant class, ー holds the note, っ cuts it, punctuation resolves the melody). Animations are WAAPI on transform/opacity; positions measured on mount/resize/run only.
 - 2026-11-14 — Setup no longer needs a local 10ff-yomitan copy: `bun run data:setup` downloads Jitendex (Yomitan zip) and Kanjium `accents.txt` and builds `dictionary.json`/`examples.json`/`pitch.json` itself (verified identical to the old files, modulo newer Jitendex). `bun start`/`bun dev` run it automatically when `data/` is incomplete and carry on without hints if offline. `data:import` removed.
 - 2026-11-14 — Fixed: switching hint mode reloaded the passage (the request carried an unused `dict` flag, so it changed the generation key). Passages always carry dictionary entries; hint is display-only. Loader for a replacement passage now overlays the dimmed text instead of sitting below the panel space (was pushed off-screen).

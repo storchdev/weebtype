@@ -87,7 +87,8 @@ export class Singer {
   }
 
   private gainFor(): number {
-    return this.volume * this.volume * 0.9;
+    // 0.55 keeps the loudest setting just under full scale (0.9 peaked ~1.45)
+    return this.volume * this.volume * 0.55;
   }
 
   /** Must first be called from a user gesture (a keydown) so the context may start. */
@@ -98,6 +99,9 @@ export class Singer {
     }
     const ctx = this.makeContext();
     if (!ctx) return null;
+    // Some browsers create it suspended even inside a gesture; resuming from the
+    // same gesture is allowed.
+    if (ctx.state === "suspended" && ctx instanceof AudioContext) void ctx.resume();
     const master = ctx.createGain();
     master.gain.value = this.gainFor();
     // gentle glue so fast typing doesn't pile up into clipping
@@ -138,6 +142,15 @@ export class Singer {
       this.note(ctx, this.master, s, hz, t);
       t += NOTE_LEN * 0.5;
     }
+  }
+
+  /** A short "ra-ra-ra" so the volume can be checked from settings (call from a click/input). */
+  preview(): void {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    this.melody.reset();
+    const now = ctx.currentTime;
+    for (const [i, k] of ["ら", "ら", "ら", "ー"].entries()) this.sing(k, now + i * 0.16);
   }
 
   reset(): void {
@@ -227,3 +240,6 @@ export class Singer {
     }
   }
 }
+
+/** One shared voice (and AudioContext) for the whole app. */
+export const singer = new Singer();

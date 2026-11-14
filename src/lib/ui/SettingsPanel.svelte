@@ -2,6 +2,12 @@
 import { LEVELS } from "../core/types.ts";
 import { FONTS } from "../fonts.ts";
 import { FONT_SIZE_RANGE, LENGTH_PRESETS, saveSettings, settings } from "../settings.svelte.ts";
+import { singer } from "../singer.ts";
+
+function previewVoice(): void {
+  singer.setVolume(settings.battleVolume / 100);
+  singer.preview();
+}
 
 interface Props {
   open: boolean;
@@ -133,13 +139,13 @@ $effect(() => {
   <section>
     <h3>遊び <span>extras</span></h3>
     <label class="field check">
-      <input type="checkbox" bind:checked={settings.battle} />
-      <span>Singer vs. marshmallow <small>each kana is sung and flung at a boss whose HP is the passage</small></span>
+      <input type="checkbox" bind:checked={settings.battle} onchange={() => settings.battle && previewVoice()} />
+      <span>Singer vs. marshmallow</span>
     </label>
     {#if settings.battle}
       <label class="field">
         <span class="label">Voice <small>{settings.battleVolume ? `${settings.battleVolume}%` : "muted"}</small></span>
-        <input type="range" min="0" max="100" step="5" bind:value={settings.battleVolume} />
+        <input type="range" min="0" max="100" step="5" bind:value={settings.battleVolume} onchange={previewVoice} />
       </label>
     {/if}
   </section>
@@ -245,11 +251,6 @@ $effect(() => {
   .label small {
     color: var(--muted);
     margin-left: 4px;
-  }
-  .check small {
-    display: block;
-    font-size: 11.5px;
-    color: var(--muted);
   }
   input:not([type]),
   input[type="number"] {

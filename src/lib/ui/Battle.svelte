@@ -8,7 +8,7 @@
 // transform/opacity; the screen positions it needs are measured on mount/resize/run.
 
 import { onMount } from "svelte";
-import { Singer } from "../singer.ts";
+import { singer } from "../singer.ts";
 
 interface Props {
   runId: number;
@@ -19,7 +19,6 @@ interface Props {
 }
 let { runId, volume, font }: Props = $props();
 
-const singer = new Singer();
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 let layer: HTMLDivElement | undefined = $state();
