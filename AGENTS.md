@@ -98,7 +98,9 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   (URL from the request's `endpoint`, else `WEEBTYPE_LLAMA_URL`, else `http://127.0.0.1:8080`).
 - The `llama` backend is two-step: `COMPOSE_PROMPT` (plain `passage` + translations + names), then
   `analyze` (kuromoji/IPAdic, `server/analyzer.ts`) segments and reads it; only words kuromoji can't read go
-  back to the model (`READINGS_PROMPT`). Don't move local models back to the one-pass ruby-group schema —
+  back to the model (`READINGS_PROMPT`). Number + counter and noun + suffix runs kuromoji reads piece by piece are
+  joined and read from Jitendex (`Dictionary.writtenReadings`, passed in as `GenerateOptions.words`); `joinCountReadings`
+  covers counts Jitendex lacks. Add irregular cases there, not as hard-coded words. Don't move local models back to the one-pass ruby-group schema —
   measured much worse (see PLAN decisions). `SYSTEM_PROMPT` is built from the same rule arrays and must stay
   byte-identical for claude/codex.
 - Prompts are `{system, user}` (`buildPrompt`): `SYSTEM_PROMPT` must stay byte-identical across requests

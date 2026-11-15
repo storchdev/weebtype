@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Backend, Level } from "../src/lib/core/types.ts";
-import { analyze, fillReadings } from "./analyzer.ts";
+import { analyze, fillReadings, type WordReadings } from "./analyzer.ts";
 import type { ProperName, RawToken } from "./normalize.ts";
 
 export interface LlmPassage {
@@ -270,6 +270,7 @@ async function generateLlama(
   model: string,
   prompt: Prompt,
   timeoutMs: number,
+  words: WordReadings | undefined,
 ): Promise<LlmPassage> {
   const composed = parseJson<{ passage?: string; translations?: string[]; names?: ProperName[] }>(
     "llama",
@@ -284,7 +285,7 @@ async function generateLlama(
   );
   const text = (composed.passage ?? "").trim();
   if (!text) throw new LlmError("llama returned an empty passage");
-  const { tokens, unknown } = await analyze(text);
+  const { tokens, unknown } = await analyze(text, words);
   if (unknown.length) {
     const words = [...new Set(unknown)];
     try {
@@ -311,6 +312,8 @@ async function generateLlama(
 export interface GenerateOptions {
   /** llama-server base URL (llama backend only). */
   endpoint?: string;
+  /** Whole-word dictionary readings for compounds the analyzer splits (llama backend only). */
+  words?: WordReadings;
   timeoutMs?: number;
 }
 
@@ -322,7 +325,7 @@ export async function generate(
 ): Promise<LlmPassage> {
   const endpoint = opts.endpoint ?? DEFAULT_LLAMA_URL;
   const timeoutMs = opts.timeoutMs ?? (backend === "llama" ? 600_000 : 180_000);
-  if (backend === "llama") return generateLlama(endpoint, model, prompt, timeoutMs);
+  if (backend === "llama") return generateLlama(endpoint, model, prompt, timeoutMs, opts.words);
   // Run from an empty temp dir so neither CLI picks up project instructions.
   const dir = await mkdtemp(join(tmpdir(), "weebtype-"));
   try {

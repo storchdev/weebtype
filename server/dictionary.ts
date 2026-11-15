@@ -20,6 +20,13 @@ export type RawExamples = Record<string, Array<{ r: string; e: DictExample[] }>>
 
 export const DATA_DIR = join(import.meta.dir, "..", "data");
 
+export interface WrittenReading {
+  /** Hiragana reading. */
+  r: string;
+  /** Jitendex popularity score (higher is more common). */
+  s: number;
+}
+
 interface Match {
   entry: RawEntry;
   /** Surface text that was looked up. */
@@ -106,6 +113,20 @@ export class Dictionary {
     for (const m of ms) {
       const r = this.surfaceReading(m);
       if (r !== null) out.add(r);
+    }
+    return out;
+  }
+
+  /**
+   * Readings (hiragana) of entries written exactly as `surface` — no deinflection, no kana
+   * lookups — with Jitendex's popularity score, most common first (一人 → ひとり, いちにん).
+   */
+  writtenReadings(surface: string): WrittenReading[] {
+    const out: WrittenReading[] = [];
+    for (const e of this.index.get(surface) ?? []) {
+      if (e.w !== surface) continue;
+      const r = toHiragana(e.r);
+      if (!out.some((o) => o.r === r)) out.push({ r, s: e.s });
     }
     return out;
   }

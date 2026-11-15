@@ -11,10 +11,14 @@ export interface Morpheme {
   surface: string;
   /** Katakana reading; absent for unknown words. */
   reading?: string;
-  /** IPAdic part of speech and first detail (動詞 / 非自立). */
+  /** IPAdic part of speech and first two details (名詞 / 接尾 / 助数詞). */
   pos: string;
   detail: string;
+  detail2?: string;
 }
+
+/** Whole-word readings of a written form, with a popularity score (Jitendex via `Dictionary`). */
+export type WordReadings = (surface: string) => readonly { r: string; s: number }[];
 
 export interface Analysis {
   tokens: RawToken[];
@@ -22,7 +26,148 @@ export interface Analysis {
   unknown: string[];
 }
 
-const JUKUJIKUN_PAIRS: Readonly<Record<string, string>> = { 一: "ヒトリ", 二: "フタリ" };
+/** Irregular counts, used when there is no dictionary to look them up in. */
+const IRREGULAR_COUNTS: Readonly<Record<string, string>> = { 一人: "ひとり", 二人: "ふたり" };
+
+const isNumber = (m: Morpheme) => m.pos === "名詞" && m.detail === "数";
+const isCounter = (m: Morpheme) => m.pos === "名詞" && m.detail === "接尾" && m.detail2 === "助数詞";
+
+/**
+ * Can `m` extend a compound that `prev` is part of? IPAdic splits number + counter
+ * (一|人, 二|十|歳) and noun + suffix (午前|中, 具体|的), reading each piece on its own.
+ */
+function continues(m: Morpheme, prev: Morpheme): boolean {
+  if (m.pos !== "名詞" || allKana(m.surface)) return false;
+  if (isNumber(m)) return isNumber(prev);
+  return m.detail === "接尾" || m.surface === "中";
+}
+
+const startsCompound = (m: Morpheme) => m.pos === "名詞" && m.detail !== "非自立" && !allKana(m.surface);
+
+const GEMINATE: ReadonlyArray<[RegExp, RegExp]> = [
+  [/(いち|はち|じゅう)$/u, /^[かきくけこさしすせそたちつてとはひふへほ]/u],
+  [/ろく$/u, /^[かきくけこはひふへほ]/u],
+];
+const HANDAKUTEN: Readonly<Record<string, string>> = { は: "ぱ", ひ: "ぴ", ふ: "ぷ", へ: "ぺ", ほ: "ぽ" };
+/** After ん these voice: 三百 さんびゃく, 三千 さんぜん, 三本 さんぼん, 三分 さんぷん, 三泊 さんぱく. */
+const AFTER_N: ReadonlyArray<[string, string]> = [
+  ["ひゃく", "びゃく"],
+  ["せん", "ぜん"],
+  ["ほん", "ぼん"],
+  ["ひき", "びき"],
+  ["はい", "ばい"],
+  ["ふん", "ぷん"],
+  ["はく", "ぱく"],
+  ["はつ", "ぱつ"],
+];
+
+/**
+ * Join the readings of a number's pieces and its counter with the regular sound changes
+ * (一本 いっぽん, 八百 はっぴゃく, 十回 じゅっかい, 三匹 さんびき). Irregular counts (一人, 二十日)
+ * come from the dictionary instead.
+ */
+export function joinCountReadings(parts: readonly string[]): string {
+  let out = "";
+  for (const raw of parts) {
+    let next = raw;
+    const gem = GEMINATE.find(([end, start]) => end.test(out) && start.test(next));
+    if (gem) {
+      out = out.replace(gem[0], (m) => `${m.slice(0, -1)}っ`);
+      const h = HANDAKUTEN[next[0] ?? ""];
+      if (h) next = h + next.slice(1);
+    } else if (out.endsWith("ん")) {
+      const v = AFTER_N.find(([from]) => next.startsWith(from));
+      if (v) next = v[1] + next.slice(v[0].length);
+    }
+    out += next;
+  }
+  return out;
+}
+
+const hira = (m: Morpheme) =>
+  m.reading && m.reading !== "*" && allKana(m.reading) ? toHiragana(m.reading) : null;
+
+/**
+ * Pick a reading for the compound `ms` from the dictionary: the most common one, ties going to
+ * the analyzer's own (`piece`). 分 read as minutes keeps minute readings (十分 isn't じゅうぶん
+ * when IPAdic split it as a count); 一日 after 〜月 is the date ついたち.
+ */
+function pickReading(
+  ms: readonly Morpheme[],
+  prev: Morpheme | undefined,
+  piece: string,
+  words: WordReadings,
+): string | null {
+  const surface = ms.map((m) => m.surface).join("");
+  let cands = words(surface).filter((c) => c.r && allKana(c.r));
+  const last = ms[ms.length - 1] as Morpheme;
+  if (last.surface === "分" && last.reading === "フン") cands = cands.filter((c) => /[ふぷ]ん$/u.test(c.r));
+  if (cands.length === 0) return null;
+  if (surface === "一日" && prev?.surface.endsWith("月") && cands.some((c) => c.r === "ついたち"))
+    return "ついたち";
+  const top = Math.max(...cands.map((c) => c.s));
+  const best = cands.filter((c) => c.s === top);
+  return (best.find((c) => c.r === piece) ?? best[0])?.r ?? null;
+}
+
+/**
+ * The compound starting at `ms[i]`, if any: the longest run the dictionary knows (一日中,
+ * 二階建て, 午前中), else a number with its counter joined by sound rules (三百円, 二十分).
+ * Returns the merged morpheme and how many morphemes it covers.
+ */
+function compoundAt(
+  ms: readonly Morpheme[],
+  i: number,
+  words: WordReadings | undefined,
+): { m: Morpheme; n: number } | null {
+  const first = ms[i] as Morpheme;
+  if (!startsCompound(first) || hira(first) === null) return null;
+  let end = i;
+  while (
+    end + 1 < ms.length &&
+    continues(ms[end + 1] as Morpheme, ms[end] as Morpheme) &&
+    hira(ms[end + 1] as Morpheme) !== null
+  )
+    end++;
+  if (end === i) return null;
+  // A count is the number run plus one counter; dictionary spans may not stop inside it.
+  let count = i;
+  if (isNumber(first)) {
+    while (count + 1 <= end && isNumber(ms[count + 1] as Morpheme)) count++;
+    if (count + 1 <= end && isCounter(ms[count + 1] as Morpheme)) count++;
+  }
+  const merged = (n: number, reading: string): { m: Morpheme; n: number } => ({
+    m: {
+      surface: ms
+        .slice(i, i + n)
+        .map((m) => m.surface)
+        .join(""),
+      reading,
+      pos: "名詞",
+      detail: "一般",
+    },
+    n,
+  });
+  const readingOf = (j: number) => {
+    const span = ms.slice(i, j + 1);
+    const countPart = isNumber(first) ? span.slice(0, Math.min(j, count) - i + 1) : [];
+    const rest = span.slice(countPart.length);
+    return (
+      joinCountReadings(countPart.map((m) => hira(m) as string)) + rest.map((m) => hira(m) as string).join("")
+    );
+  };
+  if (words)
+    for (let j = end; j > Math.max(i, isNumber(first) ? count - 1 : i); j--) {
+      const r = pickReading(ms.slice(i, j + 1), ms[i - 1], readingOf(j), words);
+      if (r) return merged(j - i + 1, r);
+    }
+  if (!isNumber(first) || count === i) return null;
+  const surface = ms
+    .slice(i, count + 1)
+    .map((m) => m.surface)
+    .join("");
+  return merged(count - i + 1, IRREGULAR_COUNTS[surface] ?? readingOf(count));
+}
 
 /** Morphemes that conjugate (their followers attach to them). */
 function isInflecting(m: Morpheme): boolean {
@@ -57,20 +202,19 @@ function groupFor(m: Morpheme): { t: string; r: string } | null {
  * Turn analyzer output into tokens with one ruby group per morpheme (okurigana is split off
  * later by `normalizeTokens`). Punctuation becomes its own token; other symbols (stray
  * quotes, spaces) are dropped. Unreadable morphemes get `r: ""` and are listed in `unknown`
- * so the caller can fill them in with `fillReadings`.
+ * so the caller can fill them in with `fillReadings`. With `words`, compounds IPAdic reads piece
+ * by piece (一|人 いち|にん) take the dictionary's whole-word reading.
  */
-export function tokensFromMorphemes(morphemes: readonly Morpheme[]): Analysis {
+export function tokensFromMorphemes(morphemes: readonly Morpheme[], words?: WordReadings): Analysis {
   const tokens: RawToken[] = [];
   const unknown: string[] = [];
   let prev: Morpheme | undefined;
   for (let i = 0; i < morphemes.length; i++) {
     let m = morphemes[i] as Morpheme;
-    // IPAdic splits 一人/二人 into number + counter (いち|にん); they're jukujikun.
-    const next = morphemes[i + 1];
-    const joined = next?.surface === "人" && next.pos === "名詞" ? JUKUJIKUN_PAIRS[m.surface] : undefined;
-    if (joined) {
-      m = { surface: `${m.surface}人`, reading: joined, pos: "名詞", detail: "一般" };
-      i++;
+    const compound = compoundAt(morphemes, i, words);
+    if (compound) {
+      m = compound.m;
+      i += compound.n - 1;
     }
     if (m.pos === "記号" || [...m.surface].every((ch) => isPunct(normalizePunct(ch)) || /\s/u.test(ch))) {
       for (const ch of m.surface) {
@@ -114,7 +258,7 @@ function load(): Promise<kuromoji.Tokenizer<kuromoji.IpadicFeatures>> {
 }
 
 /** Segment `text` and read it (the IPAdic dictionary loads once, ~200 ms). */
-export async function analyze(text: string): Promise<Analysis> {
+export async function analyze(text: string, words?: WordReadings): Promise<Analysis> {
   const t = await load();
   return tokensFromMorphemes(
     t.tokenize(text).map((k) => ({
@@ -122,6 +266,8 @@ export async function analyze(text: string): Promise<Analysis> {
       reading: k.reading,
       pos: k.pos,
       detail: k.pos_detail_1,
+      detail2: k.pos_detail_2,
     })),
+    words,
   );
 }
