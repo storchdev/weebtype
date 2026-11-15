@@ -146,6 +146,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-15 — Settings voice preview sings one note instead of the ら・ら・ら phrase: toggling the mode or the Voice slider plays the top of the range; the range sliders play the note they set.
 - 2026-11-15 — kuromoji read every number + counter piece by piece (一人 いちにん, 一本 いちほん, 三日 さんにち). The analyzer now joins those runs and takes Jitendex's whole-word reading (分 split as a counter keeps minute readings, 一日 after 〜月 is ついたち), falling back to sound rules; 8 local passages: every change correct.
 - 2026-11-15 — Results speed chart has a y-axis: round kana/min ticks (`core/ticks.ts` `niceAxis`) as HTML labels in a left gutter, faint gridlines in the SVG; the curve's top is now the top tick instead of max × 1.1.
 - 2026-11-15 — Local model setup: Qwen3.5-35B-A3B (Q4, MoE experts in RAM) on llama-server. Its one-pass passages had broken grammar and wrong readings, so the llama path now composes plain text and gets readings from kuromoji (~5 s per passage, readings verified against Jitendex).

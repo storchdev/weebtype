@@ -6,10 +6,11 @@ import { playKey } from "../keysound.ts";
 import { FONT_SIZE_RANGE, LENGTH_PRESETS, saveSettings, settings } from "../settings.svelte.ts";
 import { singer, voicebank } from "../singer.ts";
 
-function previewVoice(): void {
+/** Sing one note (default: the top of the range) with the current volume/range. */
+function previewVoice(semis?: number): void {
   singer.setVolume(settings.battleVolume / 100);
   singer.setRange({ low: settings.voiceLow, high: settings.voiceHigh });
-  singer.preview();
+  singer.preview(semis);
 }
 
 interface Props {
@@ -172,7 +173,7 @@ $effect(() => {
     {#if settings.battle}
       <label class="field">
         <span class="label">Voice <small>{settings.battleVolume ? `${settings.battleVolume}%` : "muted"}</small></span>
-        <input type="range" min="0" max="100" step="5" bind:value={settings.battleVolume} onchange={previewVoice} />
+        <input type="range" min="0" max="100" step="5" bind:value={settings.battleVolume} onchange={() => previewVoice()} />
       </label>
       <div class="field">
         <span class="label">Range <small>{noteName(settings.voiceLow)} – {noteName(settings.voiceHigh)}</small></span>
@@ -184,7 +185,7 @@ $effect(() => {
             aria-label="Lowest note"
             bind:value={settings.voiceLow}
             oninput={() => (settings.voiceHigh = Math.max(settings.voiceHigh, settings.voiceLow + 7))}
-            onchange={previewVoice}
+            onchange={() => previewVoice(settings.voiceLow)}
           />
           <input
             type="range"
@@ -193,7 +194,7 @@ $effect(() => {
             aria-label="Highest note"
             bind:value={settings.voiceHigh}
             oninput={() => (settings.voiceLow = Math.min(settings.voiceLow, settings.voiceHigh - 7))}
-            onchange={previewVoice}
+            onchange={() => previewVoice(settings.voiceHigh)}
           />
         </div>
       </div>

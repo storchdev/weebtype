@@ -364,16 +364,11 @@ export class Singer {
   }
 
   /** A short "ra-ra-ra" so volume and range can be checked from settings. */
-  preview(): void {
+  /** One sung note: the top of the range (where accented morae go), or `semis` if given. */
+  preview(semis?: number): void {
     this.melody.reset();
-    // an accent-like phrase near the top of the range: a step under, up, held
     const { low, high } = this.range;
-    const d = topDegree(high - low);
-    const top = low + degreeSemis(d);
-    const notes = [low + degreeSemis(d - 1), top, top, top];
-    ["ら", "ら", "ら", "ー"].forEach((k, i) => {
-      setTimeout(() => this.sing(k, [notes[i] as number]), i * 170);
-    });
+    this.sing("ら", [semis ?? low + degreeSemis(topDegree(high - low))]);
   }
 
   reset(): void {
