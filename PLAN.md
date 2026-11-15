@@ -145,6 +145,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-15 — Results speed chart has a y-axis: round kana/min ticks (`core/ticks.ts` `niceAxis`) as HTML labels in a left gutter, faint gridlines in the SVG; the curve's top is now the top tick instead of max × 1.1.
 - 2026-11-15 — Local model setup: Qwen3.5-35B-A3B (Q4, MoE experts in RAM) on llama-server. Its one-pass passages had broken grammar and wrong readings, so the llama path now composes plain text and gets readings from kuromoji (~5 s per passage, readings verified against Jitendex).
 - 2026-11-14 — Loaded-but-untyped passages are no longer evicted: the server leases served passages and drops them only on the first keystroke.
 - 2026-11-14 — Hint setting split at the user's request: `hint` (guide under the word) and `dictionary` (panel) are independent, so the dictionary can show alongside the kana-only guide.

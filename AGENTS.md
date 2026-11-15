@@ -59,7 +59,7 @@ the script and look at them before committing.
 server/            Bun.serve API (main.ts), LLM backends (llm.ts: claude/codex/llama-server), kuromoji readings for llama (analyzer.ts),
                    passages + prefetch (+ disk cache), variety,
                    normalisation, dictionary + vendored deinflect, Tatoeba fallback
-src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
+src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, chart ticks, types
 src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
                    PlumBranch, Petals, Battle)
 src/lib/*.ts       settings (runes, localStorage), api client, history, fonts, singer (offline-rendered voice), keysound,

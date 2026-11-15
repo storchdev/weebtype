@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { Stats, TypingSession } from "../core/session.ts";
+import { niceAxis } from "../core/ticks.ts";
 
 interface Props {
   stats: Stats;
@@ -11,6 +12,8 @@ let { stats, session, onnext, onretry }: Props = $props();
 
 const W = 520;
 const H = 90;
+/** Headroom above y = 0 in the viewBox, so the line's stroke isn't clipped at the top. */
+const PAD = 6;
 
 // Speed curve: kana/min over a sliding ~3 s window.
 const curve = $derived.by(() => {
@@ -27,7 +30,8 @@ const curve = $derived.by(() => {
   }
   if (pts.length < 2) return null;
   const tMax = stats.seconds || 1;
-  const vMax = Math.max(...pts.map((p) => p[1])) * 1.1 || 1;
+  const axis = niceAxis(Math.max(...pts.map((p) => p[1])));
+  const vMax = axis.top;
   const t0 = pts[0]?.[0] ?? 0;
   const xs = pts.map(([t]) => ((t - t0) / (tMax - t0 || 1)) * W);
   const path = pts
@@ -35,7 +39,12 @@ const curve = $derived.by(() => {
     .join(" ");
   const avgY = H - (stats.kpm / vMax) * H;
   const area = `${path} L${(xs[xs.length - 1] as number).toFixed(1)},${H} L${(xs[0] as number).toFixed(1)},${H} Z`;
-  return { path, area, avgY, vMax };
+  // y-axis labels are HTML (the SVG is stretched), placed at the gridlines' height in %.
+  const ticks = axis.ticks.map((v) => {
+    const y = H - (v / vMax) * H;
+    return { v, y, pct: ((y + PAD) / (H + PAD)) * 100 };
+  });
+  return { path, area, avgY, vMax, ticks };
 });
 
 const trouble = $derived(
@@ -102,17 +111,27 @@ function timeParts(s: number): Array<[string, string]> {
 
   {#if curve}
     <figure class="figure">
-      <svg class="chart" viewBox="0 -6 {W} {H + 6}" preserveAspectRatio="none" aria-label="Speed over time">
+      <div class="plot">
+      <div class="yaxis" aria-hidden="true">
+        {#each curve.ticks as t (t.v)}
+          <span style="top: {t.pct}%">{t.v}</span>
+        {/each}
+      </div>
+      <svg class="chart" viewBox="0 {-PAD} {W} {H + PAD}" preserveAspectRatio="none" aria-label="Speed over time">
         <defs>
           <linearGradient id="speed-fill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style="stop-color: var(--accent)" stop-opacity="0.22" />
             <stop offset="1" style="stop-color: var(--accent)" stop-opacity="0" />
           </linearGradient>
         </defs>
+        {#each curve.ticks.slice(1) as t (t.v)}
+          <line class="grid" x1="0" x2={W} y1={t.y} y2={t.y} />
+        {/each}
         <path class="area" d={curve.area} />
         <line class="avg" x1="0" x2={W} y1={curve.avgY} y2={curve.avgY} />
         <path class="line" d={curve.path} />
       </svg>
+      </div>
       <figcaption class="axis">
         <span>0秒</span>
         <span class="avg-label"><i></i>average {Math.round(stats.kpm)} 字/分</span>
@@ -224,6 +243,35 @@ function timeParts(s: number): Array<[string, string]> {
   .figure {
     margin: 32px 0 0;
   }
+  /* Number gutter on the left; the x-axis caption lines up with the plot, not the gutter. */
+  .plot {
+    position: relative;
+    margin-left: var(--yaxis-w);
+  }
+  .figure {
+    --yaxis-w: 34px;
+  }
+  .yaxis {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(-1 * var(--yaxis-w));
+    width: var(--yaxis-w);
+  }
+  .yaxis span {
+    position: absolute;
+    right: 8px;
+    transform: translateY(-50%);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .chart .grid {
+    stroke: var(--faint);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
   .chart {
     display: block;
     width: 100%;
@@ -247,6 +295,7 @@ function timeParts(s: number): Array<[string, string]> {
     vector-effect: non-scaling-stroke;
   }
   .axis {
+    margin-left: var(--yaxis-w);
     display: flex;
     justify-content: space-between;
     align-items: center;
