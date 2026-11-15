@@ -45,6 +45,7 @@ bar / IME), and always shows an unobtrusive hint for the current word.
 | Battle stage | Singer and boss stand in a **band along the bottom** (height from `layout.ts`), kana fly nearly level inside it; the dictionary panel stays under the text. Moving the panel sideways was rejected as unbalanced | User: arcs crossed the text; characters too small |
 | Singer melody | Notes are **absolute** pitches in the **major pentatonic of the lowest note** of a user-set range (default D4–E5, settings Range): `accentMelody` keeps every accent rise/drop (high = phrase top, phrase-initial low one step under, drop two under) while phrase tops walk gently downward from the sentence start. Long high plateaus (heiban + particles) drift down one step per 3 high morae (max 2); drops are measured from the drifted pitch Notes are **polyphonic** (new `<audio>` per note from a cached blob URL, ≤6 ringing), so fast typing doesn't cut them off | User: raw accent semitones around the bank's pitch "didn't sound like real pitches"; monophonic playback cut notes short |
 | Audio output | All sound plays through `<audio>` elements: key clicks are CC0 WAVs in `public/sounds/keys/`; each sung note is rendered with an `OfflineAudioContext` to a cached WAV blob. Never output live Web Audio (`ctx.destination` or a MediaStreamDestination) | On the user's Chromium + PipeWire setup live Web Audio was silent (context running, signal measured) while file-backed media elements play |
+| Web build | `bun run build:static` → `dist-static/` + `weebtype-web.zip` for itch.io (HTML game) or any static host. **Tatoeba only**, no server: every sentence pre-annotated at build time into ~400-sentence chunk files per length bucket (`sentences/`, ~80 KB gzipped each), drawn in the browser (`staticPassages.ts`). No AI generators, no user voicebank. Fonts come from **Google Fonts** in this build (local app stays self-hosted). In an iframe a "click to type" veil catches the first click | User: deploy statically or on a cheap VPS, keep itch.io open; claude/codex logins can't serve the public. itch allows ≤ 1,000 files per HTML upload and fontsource's unicode-range subsets are ~2,900 files; user chose Google Fonts over fewer fonts. A server-less build is free and needs no upkeep |
 | Tests             | `bun test` for pure logic (romaji engine, passage validation, deinflect lookup, stats)                                                                                                                                                                                                                                     |                                                                                        |
 
 ## Data shapes
@@ -138,6 +139,15 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 - [ ] Later: particle は sung as "wa" (and へ as "e")
 - [x] Hint split: guide under the word (kana + romaji / kana only / off) and the dictionary panel are separate settings
 
+### M8 — Web build (2026-11-15)
+
+- [x] `build:static`: Vite `--mode static` (`__STATIC__`, relative base) + pre-annotated Tatoeba chunks + zip (`scripts/build-static.ts`, `core/sentences.ts`)
+- [x] Client static mode: passages drawn in the browser, no `/api` calls, Generator and voicebank hints hidden
+- [x] Google Fonts instead of fontsource in the web build (itch.io 1,000-file limit)
+- [x] "Click to type" veil when embedded in an iframe and unfocused
+- [ ] Upload to itch.io / a static host
+- [ ] Later: downloadable full build (`bun build --compile`) for AI passages
+
 ## Open questions / later
 
 - JIS kana-layout direct input (not planned for v1)
@@ -146,6 +156,7 @@ Mark `[x]` when done **in the same commit** that finishes the item.
 
 ## Log
 
+- 2026-11-15 — Web build: `bun run build:static` writes `dist-static/` (73 files, 10.6 MB zip): 21,201 Tatoeba sentences annotated at build time (~2 s) into 56 chunks; each level first fetches one chunk per length bucket. Fonts from Google Fonts (fontsource was 2,939 files, over itch's 1,000). Verified in an iframe: veil until clicked, keys and Tab stay in the frame.
 - 2026-11-15 — Settings voice preview sings one note instead of the ら・ら・ら phrase: toggling the mode or the Voice slider plays the top of the range; the range sliders play the note they set.
 - 2026-11-15 — kuromoji read every number + counter piece by piece (一人 いちにん, 一本 いちほん, 三日 さんにち). The analyzer now joins those runs and takes Jitendex's whole-word reading (分 split as a counter keeps minute readings, 一日 after 〜月 is ついたち), falling back to sound rules; 8 local passages: every change correct.
 - 2026-11-15 — Results speed chart has a y-axis: round kana/min ticks (`core/ticks.ts` `niceAxis`) as HTML labels in a left gutter, faint gridlines in the SVG; the curve's top is now the top tick instead of max × 1.1.

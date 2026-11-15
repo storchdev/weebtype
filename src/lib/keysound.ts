@@ -14,7 +14,7 @@ const rr: number[] = Array.from({ length: COUNT }, () => 0);
 
 function load(): HTMLAudioElement[][] {
   pool ??= Array.from({ length: COUNT }, (_, i) => {
-    const src = `/sounds/keys/key-${String(i + 1).padStart(2, "0")}.wav`;
+    const src = `${import.meta.env.BASE_URL}sounds/keys/key-${String(i + 1).padStart(2, "0")}.wav`;
     return Array.from({ length: VOICES }, () => {
       const a = new Audio(src);
       a.preload = "auto";

@@ -8,6 +8,7 @@
     "prepare": "git config core.hooksPath .githooks || true",
     "dev": "bun run scripts/dev.ts",
     "build": "vite build",
+    "build:static": "bun run scripts/setup-data.ts --soft && bun run scripts/build-static.ts",
     "start": "bun run scripts/setup-data.ts --soft && vite build && bun run server/main.ts --open",
     "serve": "bun run server/main.ts",
     "check": "tsc --noEmit -p tsconfig.json && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",

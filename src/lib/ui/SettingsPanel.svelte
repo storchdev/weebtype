@@ -3,7 +3,7 @@ import { noteName } from "../core/accent.ts";
 import { type Backend, LEVELS } from "../core/types.ts";
 import { FONTS } from "../fonts.ts";
 import { playKey } from "../keysound.ts";
-import { FONT_SIZE_RANGE, LENGTH_PRESETS, saveSettings, settings } from "../settings.svelte.ts";
+import { FONT_SIZE_RANGE, LENGTH_PRESETS, offlineOnly, saveSettings, settings } from "../settings.svelte.ts";
 import { singer, voicebank } from "../singer.ts";
 
 /** Sing one note (default: the top of the range) with the current volume/range. */
@@ -49,6 +49,7 @@ $effect(() => {
 
   <section>
     <h3>文章 <span>passages</span></h3>
+    {#if !__STATIC__}
     <div class="field">
       <span class="label">Generator</span>
       <div class="seg">
@@ -64,7 +65,8 @@ $effect(() => {
         </button>
       </div>
     </div>
-    {#if settings.backend !== "tatoeba"}
+    {/if}
+    {#if !offlineOnly(settings)}
     <label class="field">
       <span class="label">Model</span>
       {#if settings.backend === "claude"}
@@ -109,7 +111,7 @@ $effect(() => {
         <input type="number" min="20" max="1000" step="10" bind:value={settings.length} />
       {/if}
     </div>
-    {#if settings.backend !== "tatoeba"}
+    {#if !offlineOnly(settings)}
       <label class="field">
         <span class="label">Topic <small>optional</small></span>
         <input bind:value={settings.topic} placeholder="e.g. 料理, 旅行, space, cats…" />
@@ -199,9 +201,10 @@ $effect(() => {
         </div>
       </div>
       {#await voicebank() then bank}
-        <p class="note">
+        <!-- the static build has no data/voice/ to install into -->
+        {#if bank || !__STATIC__}<p class="note">
           {#if bank}voicebank: {bank.name}{:else}built-in synth · unzip a UTAU CV voicebank into <code>data/voice/</code> for a real voice{/if}
-        </p>
+        </p>{/if}
       {/await}
     {/if}
     <label class="field check">

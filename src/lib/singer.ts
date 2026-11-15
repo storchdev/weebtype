@@ -201,15 +201,18 @@ let bankPromise: Promise<LoadedBank | null> | null = null;
 
 /** The user's voicebank, if one is installed (fetched once). */
 export function voicebank(): Promise<LoadedBank | null> {
-  bankPromise ??= fetch("/api/voice")
-    .then((r) => (r.ok ? (r.json() as Promise<{ bank: Voicebank | null }>) : null))
-    .then((j) => {
-      const bank = j?.bank;
-      if (!bank) return null;
-      const index = new OtoIndex(bank.entries);
-      return index.size ? { name: bank.name, index } : null;
-    })
-    .catch(() => null);
+  // the static build has no server, so never a user voicebank
+  bankPromise ??= __STATIC__
+    ? Promise.resolve(null)
+    : fetch("/api/voice")
+        .then((r) => (r.ok ? (r.json() as Promise<{ bank: Voicebank | null }>) : null))
+        .then((j) => {
+          const bank = j?.bank;
+          if (!bank) return null;
+          const index = new OtoIndex(bank.entries);
+          return index.size ? { name: bank.name, index } : null;
+        })
+        .catch(() => null);
   return bankPromise;
 }
 

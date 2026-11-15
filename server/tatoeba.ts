@@ -2,15 +2,10 @@
 // (examples.json): each sentence is already split into furigana segments.
 
 import { isKana, isKatakana, isPunct, normalizePunct, toHiragana } from "../src/lib/core/kana.ts";
+import { drawPassage, LEVEL_MAX_KANA, type Sentence } from "../src/lib/core/sentences.ts";
 import type { Level, Passage, Token } from "../src/lib/core/types.ts";
 import type { RawExamples } from "./dictionary.ts";
 import { countKana } from "./normalize.ts";
-
-interface Sentence {
-  tokens: Token[];
-  kana: number;
-  translation: string;
-}
 
 /** Convert example segments to tokens; returns null if something isn't typeable. */
 export function toTokens(segs: Array<{ t: string; r?: string }>): Token[] | null {
@@ -53,7 +48,8 @@ export function toTokens(segs: Array<{ t: string; r?: string }>): Token[] | null
 }
 
 export class Tatoeba {
-  private readonly sentences: Sentence[] = [];
+  /** Every typeable sentence (8–80 kana), unannotated. */
+  readonly sentences: Sentence[] = [];
 
   constructor(examples: RawExamples) {
     const seen = new Set<string>();
@@ -77,25 +73,8 @@ export class Tatoeba {
   }
 
   passage(level: Level, length: number): Passage {
-    // Rough difficulty proxy: shorter sentences for lower levels.
-    const maxLen = { N5: 20, N4: 28, N3: 40, N2: 60, N1: 80, native: 80 }[level];
-    const pool = this.sentences.filter((s) => s.kana <= maxLen);
-    const tokens: Token[] = [];
-    const translations: string[] = [];
-    let kana = 0;
-    while (kana < length * 0.9 && pool.length > 0) {
-      const s = pool[Math.floor(Math.random() * pool.length)] as Sentence;
-      tokens.push(...s.tokens);
-      translations.push(s.translation);
-      kana += s.kana;
-    }
-    return {
-      id: crypto.randomUUID(),
-      source: "tatoeba",
-      level,
-      translation: translations.join(" "),
-      tokens,
-    };
+    const pool = this.sentences.filter((s) => s.kana <= LEVEL_MAX_KANA[level]);
+    return drawPassage(level, length, () => pool[Math.floor(Math.random() * pool.length)]);
   }
 }
 

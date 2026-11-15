@@ -40,6 +40,9 @@ let result: { stats: Stats; session: TypingSession } | null = $state(null);
 let history: HistoryEntry[] = $state(loadHistory());
 let abort: AbortController | null = null;
 let battle: Battle | undefined = $state();
+// Embedded in an iframe (itch.io): keys only reach the page once the frame is clicked.
+const embedded = window.self !== window.top;
+let focused = $state(document.hasFocus());
 
 // ---- page geometry (layout.ts), exposed as CSS variables on :root ----
 let winW = $state(window.innerWidth);
@@ -118,7 +121,7 @@ async function loadPassage(skipped = true): Promise<void> {
     startRun();
   } catch (e) {
     if (ctrl.signal.aborted) return;
-    warning = `Server unreachable: ${e instanceof Error ? e.message : String(e)}`;
+    warning = `${__STATIC__ ? "Couldn't load sentences" : "Server unreachable"}: ${e instanceof Error ? e.message : String(e)}`;
   } finally {
     if (abort === ctrl) loading = false;
   }
@@ -133,7 +136,7 @@ async function useOffline(): Promise<void> {
     warning = "";
     startRun();
   } catch (e) {
-    warning = `Server unreachable: ${e instanceof Error ? e.message : String(e)}`;
+    warning = `${__STATIC__ ? "Couldn't load sentences" : "Server unreachable"}: ${e instanceof Error ? e.message : String(e)}`;
   }
 }
 
@@ -203,12 +206,20 @@ $effect(() => {
 });
 
 onMount(() => {
+  const onFocus = () => (focused = true);
+  const onBlur = () => (focused = false);
+  window.addEventListener("focus", onFocus);
+  window.addEventListener("blur", onBlur);
   void fetchHealth(settings.llamaUrl).then((h) => (health = h));
   void loadPassage(false);
   // Closing the tab without typing: the passage goes back to the front of the queue.
   const leave = () => releaseUntyped(false);
   window.addEventListener("pagehide", leave);
-  return () => window.removeEventListener("pagehide", leave);
+  return () => {
+    window.removeEventListener("pagehide", leave);
+    window.removeEventListener("focus", onFocus);
+    window.removeEventListener("blur", onBlur);
+  };
 });
 
 const sourceLabel = $derived.by(() => {
@@ -364,6 +375,13 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
   tatoeba={health ? health.tatoeba : null}
 />
 
+{#if embedded && !focused}
+  <!-- catches the first click so it focuses the frame instead of pressing a button -->
+  <button class="wake" onclick={() => window.focus()}>
+    <span>クリックして入力 <small>click to type</small></span>
+  </button>
+{/if}
+
 {#snippet loader()}
   <div class="loader">
     <svg viewBox="0 0 100 100" width="56" height="56" aria-hidden="true">
@@ -377,6 +395,43 @@ const LEVEL_JA: Record<string, string> = { native: "母語" };
 {/snippet}
 
 <style>
+  .wake {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    color: var(--ink);
+    background: color-mix(in srgb, var(--paper) 55%, transparent);
+    animation: wake-in 0.25s var(--ease-out);
+  }
+  .wake span {
+    padding: 10px 18px;
+    font-size: 18px;
+    background: var(--paper-raised);
+    border-bottom: 1px solid var(--accent);
+    border-radius: 2px;
+    box-shadow: var(--shadow);
+  }
+  .wake small {
+    margin-left: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  @keyframes wake-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wake {
+      animation: none;
+    }
+  }
   .grain {
     position: fixed;
     inset: 0;

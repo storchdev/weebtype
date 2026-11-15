@@ -137,9 +137,9 @@ export function saveSettings(): void {
   }
 }
 
-/** True when passages should come from Tatoeba only, never an LLM. */
+/** True when passages should come from Tatoeba only, never an LLM (always in the static build). */
 export function offlineOnly(s: Settings): boolean {
-  return s.backend === "tatoeba";
+  return __STATIC__ || s.backend === "tatoeba";
 }
 
 export function currentModel(s: Settings): string {

@@ -34,6 +34,13 @@ Use `bun dev` for development (Vite on 5173 with hot reload, API on 6494).
 `bun run check`, `bun test` and `bun run lint` must pass before you commit. See
 [AGENTS.md](AGENTS.md) and [PLAN.md](PLAN.md).
 
+## Web version
+
+`bun run build:static` builds a server-less version: Tatoeba sentences only (no AI
+generator, no custom voicebank), dictionary entries pre-computed at build time, fonts from
+Google Fonts. Output is `dist-static/` (serve from any static host, any subpath) and
+`weebtype-web.zip`, ready to upload to itch.io as an HTML game.
+
 ## Typing
 
 - Type romaji: `ka`, `shi`/`si`, `kya`, `nn`/`n'`, double consonants for っ (or `xtu`/`ltu`).

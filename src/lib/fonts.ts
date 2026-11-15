@@ -1,5 +1,6 @@
 // Self-hosted Google Fonts (via @fontsource). Each CSS file declares unicode-range
 // subsets, so the browser only downloads the glyph chunks it actually renders.
+// The static web build replaces these imports with a Google Fonts link (vite.config.ts).
 import "@fontsource/noto-sans-jp/400.css";
 import "@fontsource/noto-sans-jp/500.css";
 import "@fontsource/noto-serif-jp/400.css";

@@ -47,6 +47,7 @@ current word. Full scope, decisions and progress: **[PLAN.md](PLAN.md)**. Read i
 | `bun run check`                      | `tsc --noEmit` + `svelte-check --fail-on-warnings`                       |
 | `bun test`                           | Unit tests (`tests/`)                                                    |
 | `bun run lint` / `bun run format`    | Biome check / format                                                     |
+| `bun run build:static`               | Server-less web build (Tatoeba only) → `dist-static/` + `weebtype-web.zip` for itch.io / static hosts |
 | `bun run data:setup [--force]`       | Download Jitendex + Kanjium pitch, build `data/*.json` (auto-run by `bun start`/`bun dev` when `data/` is incomplete) |
 | `bun scripts/screenshot.ts out.png …` | Headless Chromium screenshot of a running server (see flags in the file: `--offline`, `--builtin`, `--theme`, `--display`, `--font`, `--hint romaji|kana|off`, `--dict on|off`, `--type "keys"` + `--wait ms`, `--finish`, `--settings`, `--battle`) |
 
@@ -59,13 +60,14 @@ the script and look at them before committing.
 server/            Bun.serve API (main.ts), LLM backends (llm.ts: claude/codex/llama-server), kuromoji readings for llama (analyzer.ts),
                    passages + prefetch (+ disk cache), variety,
                    normalisation, dictionary + vendored deinflect, Tatoeba fallback
-src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, chart ticks, types
+src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, chart ticks, Tatoeba sentence chunks, types
 src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
                    PlumBranch, Petals, Battle)
-src/lib/*.ts       settings (runes, localStorage), api client, history, fonts, singer (offline-rendered voice), keysound,
+src/lib/*.ts       settings (runes, localStorage), api client, staticPassages (web build), history, fonts, singer (offline-rendered voice), keysound,
                    layout (page geometry: branch, stage band, narrow breakpoint)
 src/app.css        theme tokens (light/dark) + base styles
-scripts/           dev runner, data setup (download + pure converters in build-data.ts), screenshot
+scripts/           dev runner, data setup (download + pure converters in build-data.ts), screenshot,
+                   build-static (web build: pre-annotated Tatoeba chunks + zip)
 tests/             bun tests for the core modules
 public/sounds/     CC0 keyboard clicks (credited in README)
 data/voice/        optional user-installed UTAU voicebank for the singer (never committed)
@@ -108,6 +110,13 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
 - Untyped passages persist to `data/cache/passages.json` (`PassageService(cacheFile)`; tests pass
   none). Served passages are leased: App calls `consumePassage` on TypingArea's `onstart` and
   `releasePassage` (beacon) when leaving an untyped AI passage — keep that pairing if you add new ways to load one. Bump `CACHE_VERSION` in `server/passages.ts` if the `Passage` shape changes incompatibly.
+- Static web build (`__STATIC__`, from `vite --mode static`; declared in `src/env.d.ts`): no server, so every
+  `/api` call in `src/lib/api.ts`/`singer.ts` must short-circuit on `__STATIC__` (write it as a ternary or early
+  return so Rollup drops the fetch). Asset URLs use `import.meta.env.BASE_URL` (the build is served from a
+  subpath), never a leading `/`. `__STATIC__` is not defined under `bun test`, so keep it out of tested modules.
+  Sentence chunk format + passage assembly live in `core/sentences.ts`, shared with `server/tatoeba.ts`.
+- The web build gets fonts from Google Fonts (`googleFonts()` in `vite.config.ts`, replaces every `@fontsource/*`
+  import): itch.io allows ≤ 1,000 files and fontsource is ~2,900. Keep its family list in sync with `src/lib/fonts.ts`.
 - Don't `pkill -f "bun server/main.ts"` from an agent shell — the pattern matches the shell itself.
 - `data/` is built only from public sources (Jitendex Yomitan zip, Kanjium `accents.txt`) by
   `scripts/setup-data.ts`; never make setup depend on a local path. Formats are documented in
