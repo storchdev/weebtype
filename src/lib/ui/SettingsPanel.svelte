@@ -329,8 +329,12 @@ $effect(() => {
     color: var(--muted);
     margin-left: 4px;
   }
-  .check small {
+  .check > span {
     font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .check small {
+    font-size: 11px;
   }
   input:not([type]),
   input[type="number"] {
