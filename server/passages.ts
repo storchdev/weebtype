@@ -179,7 +179,7 @@ export class PassageService {
       // A fresh direction per attempt; parallel prefetches each draw a different one.
       const direction = this.variety.next();
       const prompt = buildPrompt(req.level, req.length, this.variety.promptLines(direction, req.topic));
-      const raw = await generate(req.backend, req.model, prompt, endpointFor(req));
+      const raw = await generate(req.backend, req.model, prompt, { endpoint: endpointFor(req) });
       const norm = normalizeTokens(raw.tokens ?? [], this.dict);
       const allowed = Math.max(2, Math.floor(norm.tokens.length * 0.08));
       if (norm.tokens.length < 3) {

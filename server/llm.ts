@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Backend, Level } from "../src/lib/core/types.ts";
+import { analyze, fillReadings } from "./analyzer.ts";
 import type { ProperName, RawToken } from "./normalize.ts";
 
 export interface LlmPassage {
@@ -51,6 +52,38 @@ export const PASSAGE_SCHEMA = {
   },
 } as const;
 
+const NAMES_SCHEMA = PASSAGE_SCHEMA.properties.names;
+
+/** Step 1 of the llama path: plain text + translations + names. */
+export const COMPOSE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["passage", "translations", "names"],
+  properties: {
+    passage: { type: "string" },
+    translations: PASSAGE_SCHEMA.properties.translations,
+    names: NAMES_SCHEMA,
+  },
+} as const;
+
+/** Readings for the few words the morphological analyzer doesn't know (llama path). */
+export const READINGS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["readings"],
+  properties: {
+    readings: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["w", "r"],
+        properties: { w: { type: "string" }, r: { type: "string" } },
+      },
+    },
+  },
+} as const;
+
 const LEVEL_DESC: Record<Level, string> = {
   N5: "JLPT N5 (absolute beginner): only the most basic vocabulary and kanji, simple です/ます sentences",
   N4: "JLPT N4 (elementary): everyday vocabulary, basic conjugations, short compound sentences",
@@ -61,13 +94,8 @@ const LEVEL_DESC: Record<Level, string> = {
     "native level: literary or editorial prose with rich vocabulary, uncommon kanji compounds and idioms",
 };
 
-/**
- * Fixed instructions, identical for every request so they form a cacheable prefix
- * (Claude prompt cache, OpenAI prefix cache, llama-server KV reuse). Everything that
- * varies per passage goes in `buildPrompt`'s user part, after this.
- */
-export const SYSTEM_PROMPT = [
-  "You write practice passages for a Japanese typing test.",
+/** How to write the passage itself (shared by the one-step and the two-step prompts). */
+const WRITING_RULES = [
   "Write natural, interesting Japanese prose at the requested level and length (length = kana when read aloud, ±20%).",
   "Write one cohesive passage, not a collection of unrelated practice sentences. If there are multiple sentences, each must build on the previous one.",
   "Keep the same characters, setting, point of view and tense throughout. Develop one scene, short story or connected idea with a clear progression and a natural ending within the requested length.",
@@ -75,16 +103,61 @@ export const SYSTEM_PROMPT = [
   "Avoid stock openings like 今日は, 私は…です or talk about the weather unless the subject is about it.",
   "Use complete sentences ending in 。, ！ or ？. Use 、 normally. You may use 「」 for quotes.",
   "Do NOT use: Latin letters, Arabic digits (write numbers in kanji), spaces, emoji, or symbols other than 、。！？「」ー.",
-  "",
-  "Output format: JSON only. Split the passage into tokens (words, as a morphological analyzer would: particles and auxiliaries separate,",
+];
+
+/** How to split text into tokens and ruby groups. */
+const TOKEN_RULES = [
+  "Split the passage into tokens (words, as a morphological analyzer would: particles and auxiliaries separate,",
   "but keep conjugated verb endings like 食べました together). Each token has ruby groups `groups`: a list of {t, r} where t is",
   "a piece of the written text and r is its reading in hiragana (katakana words: r = the katakana itself).",
   "Split groups as finely as possible: one group per kanji when its reading is separable (日本 → 日/に, 本/ほん),",
   "okurigana as separate groups (食べる → 食/た, べる/べる), and keep jukujikun/ateji together (今日/きょう, 大人/おとな).",
   "Punctuation is its own token with t = r = the mark. Concatenating every t must reproduce the passage exactly.",
-  "Readings must be correct for the context (e.g. 一日 as ついたち vs いちにち). `translations` has one natural English translation per Japanese sentence, in the same order (a quoted 「…。」 belongs to the sentence around it).",
+  "Readings must be correct for the context (e.g. 一日 as ついたち vs いちにち).",
+];
+
+const TRANSLATIONS_RULE =
+  "`translations` has one natural English translation per Japanese sentence, in the same order (a quoted 「…。」 belongs to the sentence around it).";
+
+const NAMES_RULES = [
   "`names` lists every proper noun you used (people, places, shops, pets…) exactly as its token is written (w = 健太) with a short",
   'English gloss (en = "Kenta (male given name)"); split a full name into one entry per token (山田 and 健太). Empty if none.',
+];
+
+/**
+ * Fixed instructions, identical for every request so they form a cacheable prefix
+ * (Claude prompt cache, OpenAI prefix cache, llama-server KV reuse). Everything that
+ * varies per passage goes in `buildPrompt`'s user part, after this.
+ */
+export const SYSTEM_PROMPT = [
+  "You write practice passages for a Japanese typing test.",
+  ...WRITING_RULES,
+  "",
+  `Output format: JSON only. ${TOKEN_RULES[0]}`,
+  ...TOKEN_RULES.slice(1, -1),
+  `${TOKEN_RULES[TOKEN_RULES.length - 1]} ${TRANSLATIONS_RULE}`,
+  ...NAMES_RULES,
+].join("\n");
+
+/**
+ * llama backend: small local models write much worse Japanese when they compose and segment
+ * in one schema-constrained pass, and their readings are unreliable. They only write plain
+ * text with this prompt (same user part as `SYSTEM_PROMPT`); `analyze` adds the readings.
+ */
+export const COMPOSE_PROMPT = [
+  "You write practice passages for a Japanese typing test.",
+  ...WRITING_RULES,
+  "",
+  "Output format: JSON only. `passage` is the Japanese text, exactly as it should be typed.",
+  TRANSLATIONS_RULE,
+  ...NAMES_RULES,
+].join("\n");
+
+/** System prompt for `READINGS_SCHEMA`; the user part is the passage and the word list. */
+export const READINGS_PROMPT = [
+  "You give readings for words in a Japanese passage.",
+  "For each listed word, give its reading in hiragana as it is read in this passage (names: the most likely reading).",
+  "Output format: JSON only: `readings` is a list of {w, r} with w exactly as listed.",
 ].join("\n");
 
 export interface Prompt {
@@ -134,11 +207,21 @@ export async function backendAvailable(b: Backend, endpoint = DEFAULT_LLAMA_URL)
   }
 }
 
-/** llama-server's OpenAI-compatible endpoint, schema-constrained via a grammar. */
-async function generateLlama(
+interface ChatOptions {
+  schemaName: string;
+  schema: object;
+  temperature: number;
+  /** Hard cap so a model stuck repeating itself can't run for minutes. */
+  maxTokens: number;
+}
+
+/** One schema-constrained (grammar) call to llama-server's OpenAI-compatible endpoint. */
+async function llamaChat(
   endpoint: string,
   model: string,
-  prompt: Prompt,
+  system: string,
+  user: string,
+  opts: ChatOptions,
   timeoutMs: number,
 ): Promise<string> {
   let res: Response;
@@ -150,16 +233,17 @@ async function generateLlama(
       body: JSON.stringify({
         ...(model.trim() ? { model: model.trim() } : {}),
         messages: [
-          { role: "system", content: prompt.system },
-          { role: "user", content: prompt.user },
+          { role: "system", content: system },
+          { role: "user", content: user },
         ],
         response_format: {
           type: "json_schema",
-          json_schema: { name: "passage", strict: true, schema: PASSAGE_SCHEMA },
+          json_schema: { name: opts.schemaName, strict: true, schema: opts.schema },
         },
         // Reuse the KV cache for the shared system-prompt prefix.
         cache_prompt: true,
-        temperature: 0.8,
+        temperature: opts.temperature,
+        max_tokens: opts.maxTokens,
       }),
     });
   } catch (e) {
@@ -168,18 +252,77 @@ async function generateLlama(
     );
   }
   if (!res.ok) throw new LlmError(`llama-server ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return body.choices?.[0]?.message?.content ?? "";
+  const body = (await res.json()) as {
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
+  };
+  const choice = body.choices?.[0];
+  if (choice?.finish_reason === "length") throw new LlmError("llama-server hit max_tokens (runaway output)");
+  return choice?.message?.content ?? "";
+}
+
+/**
+ * llama backend: the model composes plain text (plus translations and names), the
+ * morphological analyzer segments and reads it, and the model is only asked again for the
+ * readings of words the analyzer doesn't know.
+ */
+async function generateLlama(
+  endpoint: string,
+  model: string,
+  prompt: Prompt,
+  timeoutMs: number,
+): Promise<LlmPassage> {
+  const composed = parseJson<{ passage?: string; translations?: string[]; names?: ProperName[] }>(
+    "llama",
+    await llamaChat(
+      endpoint,
+      model,
+      COMPOSE_PROMPT,
+      prompt.user,
+      { schemaName: "passage", schema: COMPOSE_SCHEMA, temperature: 0.8, maxTokens: 2048 },
+      timeoutMs,
+    ),
+  );
+  const text = (composed.passage ?? "").trim();
+  if (!text) throw new LlmError("llama returned an empty passage");
+  const { tokens, unknown } = await analyze(text);
+  if (unknown.length) {
+    const words = [...new Set(unknown)];
+    try {
+      const got = parseJson<{ readings?: { w: string; r: string }[] }>(
+        "llama",
+        await llamaChat(
+          endpoint,
+          model,
+          READINGS_PROMPT,
+          [`Passage: ${text}`, "Words:", ...words.map((w) => `- ${w}`)].join("\n"),
+          { schemaName: "readings", schema: READINGS_SCHEMA, temperature: 0.2, maxTokens: 512 },
+          timeoutMs,
+        ),
+      );
+      fillReadings(tokens, new Map((got.readings ?? []).map((x) => [x.w.trim(), x.r.trim()])));
+    } catch (e) {
+      // Unread words are dropped by normalizeTokens; the rest of the passage is still fine.
+      console.warn(`[llm] readings for ${words.join("、")} failed: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+  return { translations: composed.translations ?? [], names: composed.names ?? [], tokens };
+}
+
+export interface GenerateOptions {
+  /** llama-server base URL (llama backend only). */
+  endpoint?: string;
+  timeoutMs?: number;
 }
 
 export async function generate(
   backend: Backend,
   model: string,
   prompt: Prompt,
-  endpoint = DEFAULT_LLAMA_URL,
-  timeoutMs = backend === "llama" ? 600_000 : 180_000,
+  opts: GenerateOptions = {},
 ): Promise<LlmPassage> {
-  if (backend === "llama") return parse(backend, await generateLlama(endpoint, model, prompt, timeoutMs));
+  const endpoint = opts.endpoint ?? DEFAULT_LLAMA_URL;
+  const timeoutMs = opts.timeoutMs ?? (backend === "llama" ? 600_000 : 180_000);
+  if (backend === "llama") return generateLlama(endpoint, model, prompt, timeoutMs);
   // Run from an empty temp dir so neither CLI picks up project instructions.
   const dir = await mkdtemp(join(tmpdir(), "weebtype-"));
   try {
@@ -240,8 +383,12 @@ export async function generate(
 }
 
 function parse(backend: Backend, text: string): LlmPassage {
+  return parseJson<LlmPassage>(backend, text);
+}
+
+function parseJson<T>(backend: Backend, text: string): T {
   try {
-    return JSON.parse(text) as LlmPassage;
+    return JSON.parse(text) as T;
   } catch {
     throw new LlmError(`${backend} returned non-JSON output: ${text.slice(0, 200)}`);
   }

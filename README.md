@@ -61,6 +61,9 @@ The dictionary data is not in this repo; `data:setup` downloads it from:
 - Example and fallback sentences from [Tatoeba](https://tatoeba.org) — CC BY 2.0 FR.
 - Pitch accents from [Kanjium](https://github.com/mifunetoshiro/kanjium) — CC BY-SA 4.0.
 
+Readings for passages from a local model come from [kuromoji.js](https://github.com/takuyaa/kuromoji.js)
+(Apache 2.0) with its bundled IPAdic dictionary (installed by `bun install`).
+
 Fonts (Noto Sans/Serif JP, Klee One, Zen Maru Gothic, Shippori Mincho, M PLUS 1 Code,
 Yuji Syuku, Dela Gothic One) are bundled through Fontsource under the SIL Open Font License.
 

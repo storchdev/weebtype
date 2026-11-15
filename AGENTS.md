@@ -56,7 +56,8 @@ the script and look at them before committing.
 ## Layout
 
 ```
-server/            Bun.serve API (main.ts), LLM backends (llm.ts: claude/codex/llama-server), passages + prefetch (+ disk cache), variety,
+server/            Bun.serve API (main.ts), LLM backends (llm.ts: claude/codex/llama-server), kuromoji readings for llama (analyzer.ts),
+                   passages + prefetch (+ disk cache), variety,
                    normalisation, dictionary + vendored deinflect, Tatoeba fallback
 src/lib/core/      framework-free TS: kana, romaji engine, session/stats, cells/words, pitch, types
 src/lib/ui/        Svelte components (TypingArea, DictPanel, Results, SettingsPanel, HistoryPanel,
@@ -95,6 +96,11 @@ data/              dictionary/pitch/examples JSON (gitignored, built by data:set
   `--system-prompt … --tools "" --strict-mcp-config --setting-sources "" --no-session-persistence` (claude) /
   `-s read-only --ephemeral` (codex). The `llama` backend POSTs to llama-server's `/v1/chat/completions`
   (URL from the request's `endpoint`, else `WEEBTYPE_LLAMA_URL`, else `http://127.0.0.1:8080`).
+- The `llama` backend is two-step: `COMPOSE_PROMPT` (plain `passage` + translations + names), then
+  `analyze` (kuromoji/IPAdic, `server/analyzer.ts`) segments and reads it; only words kuromoji can't read go
+  back to the model (`READINGS_PROMPT`). Don't move local models back to the one-pass ruby-group schema —
+  measured much worse (see PLAN decisions). `SYSTEM_PROMPT` is built from the same rule arrays and must stay
+  byte-identical for claude/codex.
 - Prompts are `{system, user}` (`buildPrompt`): `SYSTEM_PROMPT` must stay byte-identical across requests
   (it is the cached prefix) — put anything per-request (level, length, variety, recents) in `user`.
 - Untyped passages persist to `data/cache/passages.json` (`PassageService(cacheFile)`; tests pass
