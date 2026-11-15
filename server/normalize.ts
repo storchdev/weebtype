@@ -185,20 +185,33 @@ export function sentenceEnds(tokens: readonly Token[]): number[] {
 
 /**
  * English for the sentences that survived trimming. `perSentence` is the model's
- * one-translation-per-sentence list for the untrimmed passage; when its count doesn't
- * match the Japanese, only an untrimmed passage keeps it (all of it) — a translation
- * with sentences that aren't in the text is worse than none.
+ * one-translation-per-sentence list for the untrimmed passage. Models often translate
+ * each sentence inside a quote separately (「…。…。」 → two), so when the top-level count
+ * doesn't match, the count of every 。！？ is tried too (trims always end on a top-level
+ * end, which is also one of those). Otherwise only an untrimmed passage keeps it (all of
+ * it) — a translation with sentences that aren't in the text is worse than none.
  */
 export function translationFor(
   perSentence: readonly string[],
   all: readonly Token[],
   kept: readonly Token[],
 ): string {
-  const total = sentenceEnds(all).length;
-  const n = sentenceEnds(kept).length;
   const clean = perSentence.map((s) => s.trim()).filter(Boolean);
-  if (clean.length === total) return clean.slice(0, n).join(" ");
-  return kept.length === all.length ? clean.join(" ") : "";
+  if (kept.length === all.length) return clean.join(" ");
+  for (const count of [(ts: readonly Token[]) => sentenceEnds(ts).length, innerSentenceCount])
+    if (clean.length === count(all)) return clean.slice(0, count(kept)).join(" ");
+  return "";
+}
+
+/** Sentence ends at any depth: each run of 。！？ (so 「…よ。…た。」 is two). */
+function innerSentenceCount(tokens: readonly Token[]): number {
+  const isEnd = (t: Token | undefined) => {
+    const s = t?.groups.map((g) => g.t).join("");
+    return s === "。" || s === "！" || s === "？";
+  };
+  let n = 0;
+  for (let i = 0; i < tokens.length; i++) if (isEnd(tokens[i]) && !isEnd(tokens[i + 1])) n++;
+  return n;
 }
 
 export function countKana(tokens: Token[]): number {

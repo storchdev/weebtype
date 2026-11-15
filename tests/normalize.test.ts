@@ -99,6 +99,12 @@ describe("translations follow the trim", () => {
     expect(translationFor(["Cat. Dog. Bird."], all, all)).toBe("Cat. Dog. Bird.");
     expect(translationFor(["Cat. Dog. Bird."], all, s1)).toBe("");
   });
+  test("a quote translated sentence by sentence still trims", () => {
+    const q1 = [tok("「"), tok("のった"), tok("よ"), tok("。"), tok("みた"), tok("。"), tok("」")];
+    const q2 = [tok("「"), tok("いま"), tok("？"), tok("」")];
+    const two = [...q1, ...q2];
+    expect(translationFor(['"I rode it.', 'I watched."', '"Now?"'], two, q1)).toBe('"I rode it. I watched."');
+  });
 });
 
 test("nameEntry glosses names the dictionary lacks", () => {
