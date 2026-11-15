@@ -189,9 +189,9 @@ const others = $derived(
     min-width: 0;
   }
   .reading {
-    font-size: 14px;
+    font-size: 17px;
     color: var(--muted);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     min-height: 1.6em;
   }
   .term {
@@ -202,8 +202,8 @@ const others = $derived(
     white-space: nowrap;
   }
   .deinflect {
-    margin-top: 4px;
-    font-size: 13px;
+    margin-top: 6px;
+    font-size: 14px;
     color: var(--accent);
   }
   .pitch {
@@ -278,16 +278,17 @@ const others = $derived(
     color: var(--muted);
   }
   .example {
-    margin-top: 10px;
+    margin-top: 12px;
     display: flex;
     flex-direction: column;
-    font-size: 15px;
+    gap: 2px;
+    font-size: 19px;
   }
   .ex-jp {
     color: var(--ink-soft);
   }
   .ex-jp rt {
-    font-size: 0.6em;
+    font-size: 0.55em;
     color: var(--muted);
   }
   .kw {
@@ -296,6 +297,6 @@ const others = $derived(
   .ex-en {
     color: var(--muted);
     font-style: italic;
-    font-size: 14px;
+    font-size: 15px;
   }
 </style>
